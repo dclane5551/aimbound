@@ -1,0 +1,1091 @@
+--!nocheck
+-- ===================================================================================================================
+-- SLIPSTREAM (Skins V3, bundle 10 of docs/SKINS_V3_PLAN.md; SKINS BUILDER 11 "skins11"): Scout + MP7 + 416 | Pit Knuckle
+-- | 1,199 BP. An endurance-racing prototype: racing-green lacquered BODYWORK over exposed CARBON weave, one GOLD PINSTRIPE
+-- along the panel edges, sunken NACA DUCTS, heat-tinted TITANIUM exhaust tips + fasteners, and one light language -- a
+-- TACH on the camera side whose needle redlines with your streak, and five SHIFT LIGHTS. The guns are RESCULPTED models
+-- (WeaponAssets.SkinModels.Slipstream_<GUN>, built by tools/skins_v3/slipstream_build.py in
+-- art/weapons/SkinsV3_Slipstream.blend, painted by tools/skin_v3_paint.py with tools/skins_v3/slipstream.json); this
+-- module brings their motion, effects, sounds and the rest of the bundle.
+--   TACH     the needle idles with a nervous twitch, each shot blips it, the streak raises its baseline and at 5 kills it
+--            sits in the violet REDLINE (the redline bars flare); the draw is an IGNITION (the needle sweeps to the stop and
+--            back), the inspect two revs, the reload drops it to zero and it climbs back as the magazine seats
+--   SHIFT    five lights fill with the revs (sustained fire fills them), all five flash at the redline
+--   WINGLET  (MP7) the front winglet flicks on the draw and on the inspect
+-- Muzzle: a small hot flash + a heat-tint titanium ring; a short flame spit when a burst ends. Tracer: a thin line with
+-- two streamlines converging on it. Impact: skid sparks + a short dark skid mark along the shot. Kill SLIPSTREAMED:
+-- streamlines wrap the body, it blurs into a speed streak and zips off sideways. Banner: a round tach plate whose
+-- needle climbs per kill and hits the redline at 5. Original design (plan "Originality"): no numbers, no sponsor marks, no
+-- red tuner paint -- deep racing green + a gold pinstripe is a generic motorsport tradition, the tach is ours.
+-- ===================================================================================================================
+local Set = { Kind = "Slipstream" }
+
+-- COLOURWAYS: each colourway is a whole palette -- the module copy SkinFX loads for colourway v has attribute Colorway = v.
+-- The painted model maps are separate SurfaceAppearances (SkinFX.V3Swap); Colorways.Sets.Slipstream lists the names.
+local VAR = script:GetAttribute("Colorway") or 1
+local C = Color3.fromRGB
+local V = Vector3.new
+local PALETTES = {
+    { Name = "Racing Green", Body = C(18, 58, 40), Mid = C(30, 31, 35), Detail = C(196, 152, 58), Dark = C(8, 10, 10), Ti = C(104, 72, 160),
+      TiA = C(52, 70, 150), TiB = C(176, 140, 70), Lume = C(130, 110, 255), Hot = C(226, 220, 255), Off = C(40, 34, 70), Text = C(230, 245, 230),
+      Plate = C(10, 26, 18), Ink = C(4, 10, 7) },
+    { Name = "Crimson Livery", Body = C(60, 8, 16), Mid = C(30, 31, 35), Detail = C(176, 180, 190), Dark = C(10, 7, 8), Ti = C(104, 72, 160),
+      TiA = C(52, 70, 150), TiB = C(176, 140, 70), Lume = C(130, 110, 255), Hot = C(232, 224, 255), Off = C(44, 32, 64), Text = C(246, 232, 232),
+      Plate = C(30, 8, 12), Ink = C(12, 4, 5) },
+    { Name = "Midnight Livery", Body = C(10, 14, 40), Mid = C(30, 31, 35), Detail = C(176, 182, 194), Dark = C(6, 8, 14), Ti = C(60, 130, 170),
+      TiA = C(40, 90, 150), TiB = C(150, 170, 190), Lume = C(90, 220, 255), Hot = C(220, 250, 255), Off = C(24, 50, 66), Text = C(228, 236, 250),
+      Plate = C(8, 12, 30), Ink = C(4, 5, 12) },
+    { Name = "Papaya", Body = C(92, 34, 10), Mid = C(30, 31, 35), Detail = C(44, 92, 200), Dark = C(10, 8, 8), Ti = C(80, 90, 170),
+      TiA = C(40, 70, 160), TiB = C(160, 130, 80), Lume = C(80, 160, 255), Hot = C(220, 236, 255), Off = C(30, 44, 72), Text = C(250, 240, 228),
+      Plate = C(40, 18, 6), Ink = C(10, 5, 3) },
+}
+local P = PALETTES[VAR] or PALETTES[1]
+local BODY, MID, GOLD, DARK, TI, LUME, HOT, OFF = P.Body, P.Mid, P.Detail, P.Dark, P.Ti, P.Lume, P.Hot, P.Off
+Set.Palettes = PALETTES
+Set.Colors = { Glow = LUME, Hot = HOT, Body = BODY, Accent = GOLD, Mid = MID }
+-- art (tools/make_slipstream_art.py, uploaded as decals; these are the IMAGE ids, resolved in Studio)
+local A = "rbxassetid://"
+Set.Art = {
+    EmblemSlipstream = A .. "77274371040742", sl_emblem = A .. "77274371040742", sl_emblem_mask = A .. "71384981581174", sl_dial = A .. "137837985449162",
+    sl_ring = A .. "108935742667346", sl_streak = A .. "109563121291752", sl_skid = A .. "121741778843145", sl_corner = A .. "88888331196284",
+    tex_sl_carbon = A .. "75542845002861", tex_sl_lines = A .. "122406724362308", tex_sl_bar = A .. "136844824294600", SpStreak = A .. "102268109355742",
+}
+local ART = Set.Art
+
+local TAU = math.pi * 2
+local function smooth(x) x = math.clamp(x, 0, 1) return x * x * (3 - 2 * x) end
+local function pulse(t, w) return math.exp(-(t / w) ^ 2) end
+
+-- BEGIN SLIPSTREAM DATA (generated by tools/skins_v3/slipstream_lua.py from the sculpts -- do not edit by hand)
+local DATA = {
+    HK416 = {
+        Tach = { C = V(-0.405, 0.085, -0.0925), R = 0.072, Axis = V(0.0, 0.0, 1.0), Len = 0.0619, W = 0.0065, Tail = 0.013, Rest = 225.0, Sweep = 270.0, Side = -1,
+            Red = {
+                { C = V(-0.4643, 0.0944, -0.0925), S = V(0.016, 0.0055, 0.002), Rz = -99.0 },
+                { C = V(-0.4649, 0.0819, -0.0925), S = V(0.016, 0.0055, 0.002), Rz = -87.0 },
+                { C = V(-0.463, 0.0695, -0.0925), S = V(0.016, 0.0055, 0.002), Rz = -75.0 },
+                { C = V(-0.4585, 0.0578, -0.0925), S = V(0.016, 0.0055, 0.002), Rz = -63.0 },
+                { C = V(-0.4516, 0.0472, -0.0925), S = V(0.016, 0.0055, 0.002), Rz = -51.0 },
+            },
+        },
+        Shift = {
+            { C = V(0.165, 0.21, -0.112), S = V(0.02, 0.009, 0.003), I = 1 },
+            { C = V(0.195, 0.21, -0.112), S = V(0.02, 0.009, 0.003), I = 2 },
+            { C = V(0.225, 0.21, -0.112), S = V(0.02, 0.009, 0.003), I = 3 },
+            { C = V(0.255, 0.21, -0.112), S = V(0.02, 0.009, 0.003), I = 4 },
+            { C = V(0.285, 0.21, -0.112), S = V(0.02, 0.009, 0.003), I = 5 },
+        },
+    },
+    SCOUT = {
+        Tach = { C = V(-0.33, 0.098, -0.0675), R = 0.058, Axis = V(0.0, 0.0, 1.0), Len = 0.0499, W = 0.0065, Tail = 0.0104, Rest = 225.0, Sweep = 270.0, Side = -1,
+            Red = {
+                { C = V(-0.3754, 0.1052, -0.0675), S = V(0.016, 0.0055, 0.002), Rz = -99.0 },
+                { C = V(-0.3759, 0.0956, -0.0675), S = V(0.016, 0.0055, 0.002), Rz = -87.0 },
+                { C = V(-0.3744, 0.0861, -0.0675), S = V(0.016, 0.0055, 0.002), Rz = -75.0 },
+                { C = V(-0.371, 0.0771, -0.0675), S = V(0.016, 0.0055, 0.002), Rz = -63.0 },
+                { C = V(-0.3657, 0.0691, -0.0675), S = V(0.016, 0.0055, 0.002), Rz = -51.0 },
+            },
+        },
+        Shift = {
+            { C = V(-1.36, 0.128, -0.0645), S = V(0.02, 0.009, 0.003), I = 1 },
+            { C = V(-1.4, 0.128, -0.0645), S = V(0.02, 0.009, 0.003), I = 2 },
+            { C = V(-1.44, 0.128, -0.0645), S = V(0.02, 0.009, 0.003), I = 3 },
+            { C = V(-1.48, 0.128, -0.0645), S = V(0.02, 0.009, 0.003), I = 4 },
+            { C = V(-1.52, 0.128, -0.0645), S = V(0.02, 0.009, 0.003), I = 5 },
+        },
+    },
+    MP7 = {
+        Tach = { C = V(-0.36, 0.112, -0.0665), R = 0.05, Axis = V(0.0, 0.0, 1.0), Len = 0.043, W = 0.0065, Tail = 0.009, Rest = 225.0, Sweep = 270.0, Side = -1,
+            Red = {
+                { C = V(-0.3975, 0.1179, -0.0665), S = V(0.016, 0.0055, 0.002), Rz = -99.0 },
+                { C = V(-0.3979, 0.11, -0.0665), S = V(0.016, 0.0055, 0.002), Rz = -87.0 },
+                { C = V(-0.3967, 0.1022, -0.0665), S = V(0.016, 0.0055, 0.002), Rz = -75.0 },
+                { C = V(-0.3939, 0.0947, -0.0665), S = V(0.016, 0.0055, 0.002), Rz = -63.0 },
+                { C = V(-0.3895, 0.0881, -0.0665), S = V(0.016, 0.0055, 0.002), Rz = -51.0 },
+            },
+        },
+        Shift = {
+            { C = V(-0.21, 0.188, -0.066), S = V(0.02, 0.009, 0.003), I = 1 },
+            { C = V(-0.175, 0.188, -0.066), S = V(0.02, 0.009, 0.003), I = 2 },
+            { C = V(-0.14, 0.188, -0.066), S = V(0.02, 0.009, 0.003), I = 3 },
+            { C = V(-0.105, 0.188, -0.066), S = V(0.02, 0.009, 0.003), I = 4 },
+            { C = V(-0.07, 0.188, -0.066), S = V(0.02, 0.009, 0.003), I = 5 },
+        },
+    },
+}
+-- END SLIPSTREAM DATA
+
+local function GunDesc(gun: string): string
+    local what = (gun == "SCOUT") and "a carbon monocoque thumbhole stock rising into an aero fin, a two-tone forend with NACA ducts, a fluted titanium barrel and an exhaust-tip brake"
+        or (gun == "MP7") and "aero bodywork wrapped round the receiver, a carbon front winglet that flicks when you draw it and a titanium exhaust tip"
+        or "a long swept handguard with a carbon front splitter and two NACA ducts a side, receiver side panels and a carbon stock with an aero fin"
+    return "An endurance-racing prototype: " .. what .. ", in racing-green lacquer over exposed carbon with one gold pinstripe and heat-tinted titanium. On the camera side a tach dial twitches at idle, blips with every shot and climbs with your streak until it sits in the violet redline; five shift lights fill as you hold the trigger. Streamline tracers, skid-spark impacts, and every kill gets SLIPSTREAMED."
+end
+
+-- ===== the guns =====
+Set.GunSkins = {
+    { Id = "SlipstreamSCOUT", Name = "Slipstream Hunting Rifle", Gun = "SCOUT", Rarity = "Mythic", Price = 399, ProductId = 0, Desc = GunDesc("SCOUT"),
+      Model = "Slipstream_SCOUT", V3 = true, Color = LUME, Deco = "SlipstreamGun", Fit = { G = "SCOUT" } },
+    { Id = "SlipstreamMP7", Name = "Slipstream MP7", Gun = "MP7", Rarity = "Mythic", Price = 399, ProductId = 0, Desc = GunDesc("MP7"),
+      Model = "Slipstream_MP7", V3 = true, Color = LUME, Deco = "SlipstreamGun", Fit = { G = "MP7" } },
+    { Id = "SlipstreamHK416", Name = "Slipstream 416", Gun = "HK416", Rarity = "Mythic", Price = 399, ProductId = 0, Desc = GunDesc("HK416"),
+      Model = "Slipstream_HK416", V3 = true, Color = LUME, Deco = "SlipstreamGun", Fit = { G = "HK416" } },
+}
+
+-- ===== the lit bits, built as Roblox Neon parts on the sculpt (they recolour with the palette): the tach needle (turning
+-- about the dial), its hub, the five redline bars, the five shift lights =====
+Set.Build = {}
+Set.Build.SlipstreamGun = function(model: Model, frame: BasePart, f: any, forView: boolean, H: any)
+    local d = DATA[f.G or ""]
+    if not d then return end
+    local base = frame.CFrame
+    local t = d.Tach
+    if t then
+        local ax = t.Axis
+        local out = -t.Side -- (the dial faces -Z when Side = -1: the needle sits a hair in front of the face)
+        local pivot = base * CFrame.new(t.C + V(0, 0, 0.0012 * t.Side))
+        -- the needle at rest: from the pivot toward screen angle Rest (the camera's right = gun -X on the camera side)
+        local phi = math.rad(t.Rest)
+        local dir = V(t.Side * math.cos(phi), math.sin(phi), 0)
+        local mid = (t.Len - t.Tail) / 2
+        local cf = CFrame.lookAt(Vector3.zero, dir, V(0, 0, 1)) -- (the part's -Z axis along the needle)
+        local needle = H.Deco(model, { Name = "TachNeedle", Size = V(t.W, 0.002, t.Len + t.Tail),
+            CFrame = pivot * CFrame.new(dir * mid) * cf.Rotation, Color = HOT, Glow = true, Zone = "Tach" })
+        H.Rotor(needle, pivot.Position, base:VectorToWorldSpace(ax), 0)
+        needle:SetAttribute("RotorSpeed", nil)
+        needle:SetAttribute("TurnDrive", "Revs")
+        needle:SetAttribute("TurnScale", 1)
+        local hub = H.Deco(model, { Name = "TachHub", Shape = Enum.PartType.Cylinder, Size = V(0.003, t.W * 2.4, t.W * 2.4),
+            CFrame = pivot * CFrame.Angles(0, math.rad(90), 0), Color = LUME, Glow = true, Zone = "Tach" })
+        hub:SetAttribute("GlowDrive", "Hub"); hub:SetAttribute("GlowCold", 0.4); hub:SetAttribute("GlowHot", 0)
+        for i, r in ipairs(t.Red or {}) do
+            local p = H.Deco(model, { Name = "TachRed", Size = r.S, CFrame = base * CFrame.new(r.C) * CFrame.Angles(0, 0, math.rad(r.Rz)), Color = LUME, Glow = true, Zone = "Tach" })
+            p:SetAttribute("GlowDrive", "Red" .. i); p:SetAttribute("GlowCold", 0.78); p:SetAttribute("GlowHot", 0)
+        end
+    end
+    for _, s in ipairs(d.Shift or {}) do
+        local p = H.Deco(model, { Name = "ShiftLight", Shape = Enum.PartType.Ball, Size = s.S, CFrame = base * CFrame.new(s.C), Color = (s.I >= 5) and LUME or HOT:Lerp(LUME, 0.55),
+            Glow = true, Zone = "Shift" })
+        p:SetAttribute("GlowDrive", "Sh" .. s.I); p:SetAttribute("GlowCold", 0.86); p:SetAttribute("GlowHot", 0)
+    end
+end
+
+-- ===== sounds (tools/skins_v3/slipstream_sfx.py: each gun's own recorded shot + a tight exhaust bark; every moment from CC0
+-- recordings -- quick-release clicks, a wheel gun zip, an engine blip, a turbo whoosh; tools/sound_sources.json) =====
+Set.Sounds = {
+    Fire = { Id = 0, Volume = 0 }, Equip = { Id = 103108365993941, Volume = 0.42 }, MagOut = { Id = 88541852423739, Volume = 0.34 },
+    MagIn = { Id = 113002675585905, Volume = 0.38 }, Kill = { Id = 122524412106781, Volume = 0.5 }, Impact = { Id = 136950250643463, Volume = 0.2 },
+    Swing = { Id = 126002030607762, Volume = 0.38 }, MeleeHit = { Id = 84011374607825, Volume = 0.42 }, Turbo = { Id = 135616577429586, Volume = 0.22 },
+    Rev = { Id = 79299580674893, Volume = 0.3 },
+    -- (each gun's own full shot; after the screen's quieten the clips sit +1.2 / +1.1 / +1.2 dB over the base shots: volumes =
+    -- the base guns' (Scout 1.0, MP7 0.7, 416 0.85) x that difference)
+    FireGun = { SCOUT = { Id = 85629673610225, Volume = 0.87 }, MP7 = { Id = 77002546593060, Volume = 0.62 }, HK416 = { Id = 124407038239930, Volume = 0.74 } },
+}
+local function PlaySound(H: any, d: any, pitch: number?)
+    if not d or (d.Id or 0) == 0 then return end
+    local s = Instance.new("Sound")
+    s.SoundId = "rbxassetid://" .. tostring(d.Id)
+    s.Volume = d.Volume or 0.4
+    s.PlaybackSpeed = pitch or 1
+    local grp = H.SoundService:FindFirstChild("AimRngMix_Weapons")
+    if grp then s.SoundGroup = grp end
+    s.Parent = H.SoundService
+    s:Play()
+    H.Debris:AddItem(s, 3)
+end
+
+-- ===== motion: every key the parts read =====
+-- v = rig.SkinVars / rec.Vars: Revs (needle 0..1 of the sweep), RevsV (its velocity), Kick (shot energy), Tw (twitch
+-- target), NextTw, LastSS, Burst (shots in this burst), BlipT (a rev blip), WingT
+local SWEEP = math.rad(270)
+local RED_AT = 210 / 270 -- (the redline zone starts 210 deg into the sweep)
+local function Keys(st: any, v: any, dt: number, now: number, anim: string?, animT: number?)
+    local ss = st.SinceShot or 99
+    local se = st.SinceEquip or 99
+    local streak = math.min(st.Streak or 0, 5)
+    local shot = ss < 0.08 and ss < (v.LastSS or 99) - 1e-4
+    v.LastSS = ss
+    if shot then
+        v.Kick = math.min(1, (v.Kick or 0) + 0.55)
+        v.Burst = (v.Burst or 0) + 1
+    end
+    if ss > 0.35 then v.Burst = 0 end
+    v.Kick = math.max(0, (v.Kick or 0) - dt * 1.6)
+    -- idle twitch: a new small target every 0.15 - 0.6 s (an engine ticking over)
+    if not v.NextTw or now >= v.NextTw then v.Tw = (math.random() - 0.5) * 0.05; v.NextTw = now + 0.15 + math.random() * 0.45 end
+    local base = 0.12 + 0.135 * streak            -- (streak 5 -> 0.795: inside the redline)
+    local hold = math.clamp((v.Burst or 0) / 14, 0, 1) * 0.25 -- (sustained fire builds revs)
+    local goal = base + (v.Tw or 0) + (v.Kick or 0) * 0.22 + hold
+    -- the draw: IGNITION -- sweep to the stop and back down
+    if se < 0.9 then
+        local k = se / 0.9
+        goal = (k < 0.35) and smooth(k / 0.35) or (1 - smooth((k - 0.35) / 0.65) * (1 - base))
+    end
+    -- the inspect: two revs on its beats (BlipT set by the events), the reload: dropped to zero, climbing back as it seats
+    local bt = v.BlipT and (now - v.BlipT) or 99
+    if bt < 0.7 then goal = math.max(goal, base + 0.42 * math.sin(math.clamp(bt / 0.7, 0, 1) * math.pi)) end
+    local rl = st.Reload or 0
+    if rl > 0 then
+        if rl < 0.62 then goal = goal * (1 - smooth(rl / 0.25)) else goal = goal * smooth((rl - 0.62) / 0.3) end
+    end
+    goal = math.clamp(goal, 0, 1)
+    -- a damped needle: quick up, a little overshoot, settles
+    local r, vel = v.Revs or 0, v.RevsV or 0
+    vel += ((goal - r) * 520 - vel * 30) * dt
+    r = math.clamp(r + vel * dt, -0.02, 1.02)
+    v.Revs, v.RevsV = r, vel
+    st.Revs = r * SWEEP
+    -- the redline bars: dim, flaring as the needle enters the zone (at 5 kills they pulse)
+    local inRed = math.clamp((r - RED_AT + 0.04) / 0.08, 0, 1)
+    for i = 1, 5 do
+        local lit = math.clamp((r - (RED_AT + (i - 1) * 0.04)) / 0.03, 0, 1)
+        local g = math.max(0.25, lit)
+        if streak >= 5 then g = math.max(g, 0.7 + 0.3 * math.sin(now * 9 + i)) end
+        st["Red" .. i] = g * (0.6 + 0.4 * inRed)
+    end
+    st.Hub = 0.35 + 0.65 * r
+    -- shift lights: fill with the revs (0.42 .. 0.82 of the sweep), all flash at the redline
+    for i = 1, 5 do
+        local on = math.clamp((r - (0.38 + i * 0.085)) / 0.05, 0, 1)
+        if r > RED_AT then on = ((now * 12) % 2 < 1.2) and 1 or 0.35 end
+        st["Sh" .. i] = on
+    end
+    -- the MP7's winglet: a flick on the draw and the inspect's Tilt (WingT)
+    local w = 0
+    if se < 0.6 then w = math.sin(math.clamp((se - 0.15) / 0.45, 0, 1) * math.pi) end
+    local wt = v.WingT and (now - v.WingT) or 99
+    if wt < 0.5 then w = math.max(w, math.sin(math.clamp(wt / 0.5, 0, 1) * math.pi)) end
+    st.Wing = w
+end
+Set.Drive = function(rig: any, st: any, dt: number, now: number, H: any)
+    local v = rig.SkinVars
+    if rig.Def and rig.Def.IsMelee then
+        -- the Pit Knuckle: the titanium blade shimmers after a hit; the inspect glints it (st.Glint)
+        local gt = v.GlintT and (now - v.GlintT) or 99
+        st.Glint = math.max(0.2 + 0.1 * math.sin(now * 1.3), pulse(gt, 0.25))
+        return
+    end
+    local an, at = rig.AnimName, rig.AnimTime
+    Keys(st, v, dt, now, an, at)
+    -- a burst that ends: a short flame spit at the exhaust tip (FireSpit)
+    local ss = st.SinceShot or 99
+    if (v.LastBurst or 0) >= 4 and ss > 0.12 and not v.Spat then
+        v.Spat = true
+        if rig.Fx and rig.Fx.SlSpit then rig.Fx.SlSpit:Emit(5) end
+        PlaySound(H, Set.Sounds.Turbo, 0.95 + 0.1 * math.random())
+    end
+    if ss < 0.1 then v.Spat = false end
+    v.LastBurst = (v.Burst or 0) > 0 and v.Burst or v.LastBurst
+    if ss > 0.4 then v.LastBurst = 0 end
+end
+Set.OnEvent = function(rig: any, name: string, H: any, data: any)
+    local v = rig.SkinVars
+    if not v then return end
+    if name == "Present" or name == "Tilt" or name == "Flip" or name == "Rack" then v.BlipT = os.clock(); PlaySound(H, Set.Sounds.Rev, 1) end
+    if name == "Tilt" or name == "Present" then v.WingT = os.clock() end
+    if rig.Def and rig.Def.IsMelee and (name == "Flip" or name == "Raise") then v.GlintT = os.clock() end
+end
+Set.OnAnim = function(rig: any, name: string)
+    if rig.Def and rig.Def.IsMelee and (name:find("Light") or name:find("Heavy") or name:find("Quick")) then rig.SkinVars.GlintT = os.clock() end
+end
+-- other players' guns: the needle idling and twitching at a streak of 1, the occasional blip
+Set.World = function(rec: any, now: number, st: any)
+    local v = rec.Vars
+    local dt = v.LastNow and math.clamp(now - v.LastNow, 0, 0.2) or 0
+    v.LastNow = now
+    v.NextBlip = v.NextBlip or (now + 3 + math.random() * 4)
+    if now >= v.NextBlip then v.BlipT = os.clock(); v.NextBlip = now + 4 + math.random() * 6 end
+    st.SinceShot = 99; st.SinceEquip = 99; st.Reload = 0; st.Streak = 1
+    Keys(st, v, dt, now, nil, nil)
+end
+
+-- ===== muzzle: a small hot flash + a heat-tint titanium ring; a flame spit when a burst ends =====
+Set.Muzzle = function(rig: any, flash: ParticleEmitter, light: PointLight, muzzle: Attachment, H: any)
+    flash.Color = ColorSequence.new(HOT, P.TiB)
+    flash.Size = NumberSequence.new({ NumberSequenceKeypoint.new(0, 0.12), NumberSequenceKeypoint.new(1, 0.02) })
+    light.Color = HOT
+    light.Brightness = 0.6
+    rig.Fx.SlRing = H.Emitter(muzzle, { Name = "SlRing", Texture = ART.sl_ring ~= "" and ART.sl_ring or nil, Color = ColorSequence.new({
+            ColorSequenceKeypoint.new(0, P.TiB), ColorSequenceKeypoint.new(0.5, TI), ColorSequenceKeypoint.new(1, P.TiA) }),
+        Size = { 0.06, 0.34 }, Life = { 0.1, 0.12 }, Speed = { 0, 0 }, Trans = { 0.2, 1 }, Light = 1,
+        Orient = Enum.ParticleOrientation.VelocityPerpendicular, Dir = Enum.NormalId.Right, Spread = 0 })
+    rig.Fx.SlSpit = H.Emitter(muzzle, { Name = "SlSpit", Texture = H.FIRE, Color = { HOT, P.TiB }, Size = { 0.12, 0.02 }, Life = { 0.08, 0.14 },
+        Speed = { 3, 6 }, Trans = { 0.1, 1 }, Light = 1, Spread = 8, Dir = Enum.NormalId.Right })
+end
+Set.OnFire = function(rig: any, H: any)
+    if rig.Fx and rig.Fx.SlRing then rig.Fx.SlRing:Emit(1) end
+end
+
+-- ===== STREAMLINE tracer: a thin hot line + two wind streamlines that start wide of it and converge on the hit =====
+Set.Tracer = function(H: any, from: Vector3, to: Vector3, peer: boolean?)
+    local dist = (to - from).Magnitude
+    if dist < 1.5 then return end
+    local dir = (to - from).Unit
+    local host = H.FxPart({ Transparency = 1, Size = V(0.05, 0.05, 0.05), CFrame = CFrame.new(from) })
+    local a0, a1 = H.Att(host, from), H.Att(host, to)
+    local core = Instance.new("Beam")
+    core.Attachment0, core.Attachment1 = a0, a1
+    core.Color = ColorSequence.new(HOT, LUME); core.LightEmission = 1; core.LightInfluence = 0; core.FaceCamera = true; core.Segments = 1
+    core.Width0, core.Width1 = 0.012, peer and 0.03 or 0.04
+    core.Parent = host
+    -- the streamlines: from two points beside the muzzle, bowed outward, meeting the core at the far end
+    local side = dir:Cross(V(0, 1, 0))
+    if side.Magnitude < 0.1 then side = dir:Cross(V(1, 0, 0)) end
+    side = side.Unit
+    local up = side:Cross(dir).Unit
+    local lines = {}
+    if not peer then
+        for k = -1, 1, 2 do
+            local s0 = H.Att(host, from + side * (0.18 * k) + up * 0.05)
+            local b = Instance.new("Beam")
+            b.Attachment0, b.Attachment1 = s0, a1
+            b.Texture = ART.sl_streak ~= "" and ART.sl_streak or ""
+            b.TextureMode = Enum.TextureMode.Stretch
+            b.Color = ColorSequence.new(LUME, HOT); b.LightEmission = 1; b.LightInfluence = 0; b.FaceCamera = true; b.Segments = 12
+            b.CurveSize0 = math.min(dist * 0.18, 2.4) * k; b.CurveSize1 = 0
+            b.Width0, b.Width1 = 0.035, 0.006
+            b.Parent = host
+            table.insert(lines, b)
+        end
+    end
+    local travel = H.TRAVEL -- (hitscan: the shot is there at once, nothing flies)
+    local dur = travel + 0.16
+    H.Animate(dur, function(t)
+        local hk = math.clamp(t / travel, 0, 1)
+        local tailK = math.clamp((t - travel * 0.5) / (dur - travel * 0.5), 0, 1)
+        a0.WorldPosition, a1.WorldPosition = from, from + dir * dist * hk -- (hitscan look: the tail stays at the muzzle)
+        core.Transparency = NumberSequence.new({ NumberSequenceKeypoint.new(0, 0.6 + 0.4 * tailK), NumberSequenceKeypoint.new(1, 0.1 + 0.6 * tailK) })
+        for _, b in ipairs(lines) do
+            b.Transparency = NumberSequence.new({ NumberSequenceKeypoint.new(0, 0.85), NumberSequenceKeypoint.new(1, 0.35 + 0.65 * tailK) })
+        end
+    end, function() host:Destroy() end)
+end
+
+-- ===== SKID impact: sparks skidding along the surface + a short dark skid mark along the shot, fading =====
+Set.Impact = function(H: any, pos: Vector3, normal: Vector3?, peer: boolean?)
+    if not H.Budget("SlipstreamImpact", peer and 3 or 8, 0.4) then return end
+    local n = (normal and normal.Magnitude > 0.1) and normal.Unit or V(0, 1, 0)
+    local cam = workspace.CurrentCamera
+    local look = cam and cam.CFrame.LookVector or V(0, 0, -1)
+    local along = look - n * look:Dot(n)
+    if along.Magnitude < 0.05 then along = n:Cross(V(0, 1, 0)); if along.Magnitude < 0.05 then along = V(1, 0, 0) end end
+    along = along.Unit
+    local face = CFrame.lookAt(pos + n * 0.015, pos + n * 2, along)
+    local mark = H.FxPart({ Transparency = 1, Size = V(0.1, 0.5, 0.02), CFrame = face * CFrame.new(0, 0.18, 0) })
+    local dec = Instance.new("Decal")
+    dec.Texture = ART.sl_skid; dec.Face = Enum.NormalId.Front; dec.Color3 = C(20, 20, 22); dec.Transparency = 0.25
+    dec.Parent = mark
+    local att = H.Att(mark, pos + n * 0.03)
+    local sp = H.Emitter(att, { Name = "SlSkid", Color = { HOT, P.TiB }, Size = { 0.05, 0.01 }, Life = { 0.12, 0.26 }, Speed = { 6, 12 }, Spread = 18,
+        Trans = { 0, 1 }, Light = 1, Drag = 4, Accel = V(0, -18, 0) })
+    -- (sparks skid ALONG the surface in the shot's direction)
+    att.WorldCFrame = CFrame.lookAt(pos + n * 0.03, pos + n * 0.03 + along + n * 0.25)
+    sp.EmissionDirection = Enum.NormalId.Front
+    sp:Emit(peer and 4 or 8)
+    H.Animate(0.7, function(t)
+        local k = t / 0.7
+        mark.Size = V(0.06 + 0.03 * math.min(1, k * 4), 0.12 + 0.4 * math.min(1, k * 5), 0.02)
+        dec.Transparency = math.clamp(0.25 + k ^ 1.6, 0, 1)
+    end, function() mark:Destroy() end)
+end
+
+-- ===== PIT STOP kill (FX roll-out 2026-10-14; was SLIPSTREAMED -- the body tinted blue with swirl lines, stretching TOWARD
+-- the crosshair line: "a recolour; moves into the crosshair"). ONE idea: a launch off the line. The body crouches back for a
+-- beat, then is LAUNCHED sideways -- away from the screen centre -- stretching into a streak with five violet light trails
+-- behind it, leaving a black SKID MARK on the real floor and a puff of tyre smoke that hangs where it stood. 1.0 s. The body
+-- leaves the crosshair by ~0.25 s; nothing lit stays there. Budget: full <= 12 body pieces + skid + host = 14 parts, 5
+-- Beams, 14 smoke sprites; low: no body pieces -- the trails, skid and 7 smoke sprites (2 parts). =====
+local function SlBody(pos: Vector3, H: any): ({ BasePart }, CFrame, Vector3)
+    local op = OverlapParams.new()
+    op.FilterType = Enum.RaycastFilterType.Exclude
+    local ex = { H.FxFolder() }
+    for _, pl in ipairs(H.Players:GetPlayers()) do if pl.Character then table.insert(ex, pl.Character) end end
+    if workspace.CurrentCamera then table.insert(ex, workspace.CurrentCamera) end
+    op.FilterDescendantsInstances = ex
+    local best, count = nil, {}
+    for _, p in ipairs(workspace:GetPartBoundsInRadius(pos, 3.5, op)) do
+        local m = p:FindFirstAncestorOfClass("Model")
+        while m and not (m:FindFirstChild("Head") or m:FindFirstChild("Torso")) do m = m.Parent and m.Parent:FindFirstAncestorOfClass("Model") end
+        if m then count[m] = (count[m] or 0) + 1; if not best or count[m] > count[best] then best = m end end
+    end
+    local out = {}
+    if best then
+        for _, p in ipairs(best:GetDescendants()) do
+            if p:IsA("BasePart") and p.Transparency < 0.6 and p.Size.Magnitude < 12 and #out < 12 then table.insert(out, p) end
+        end
+        local ok, cf, size = pcall(function() return best:GetBoundingBox() end)
+        if ok and size.Magnitude < 20 then return out, cf, size end
+    end
+    return out, CFrame.new(pos - V(0, 1.4, 0)), V(1.8, 3.8, 1.2)
+end
+Set.Kill = function(H: any, pos: Vector3, low: boolean)
+    local parts, bcf, bsz = SlBody(pos, H)
+    local center = bcf.Position
+    local ground = H.Ground(pos)
+    local cam = workspace.CurrentCamera
+    local rt = cam and cam.CFrame.RightVector or Vector3.xAxis
+    rt = V(rt.X, 0, rt.Z)
+    rt = (rt.Magnitude > 0.05) and rt.Unit or Vector3.xAxis
+    -- launch AWAY from the screen centre (the side of the screen the body is on; dead centre -> right)
+    local dir = rt
+    if cam then
+        local vp = cam:WorldToViewportPoint(center)
+        if vp.X < cam.ViewportSize.X / 2 - 2 then dir = -rt end
+    end
+    local model = Instance.new("Model")
+    model.Name = "SlipstreamKill"
+    model.Parent = H.FxFolder()
+    -- the body pieces (their own colours): crouch back, then launch, stretching along the run
+    local pieces = {}
+    if not low then
+        for _, src in ipairs(parts) do
+            local p = H.FxPart({ Material = (src.Material == Enum.Material.Neon) and Enum.Material.Neon or Enum.Material.SmoothPlastic, Size = src.Size,
+                CFrame = src.CFrame, Color = (math.min(src.Color.R, src.Color.G, src.Color.B) > 0.9) and BODY:Lerp(MID, 0.3) or src.Color, -- (a hit-flash white body: its set colour)
+                Transparency = src.Transparency,
+                Shape = (src:IsA("Part") and src.Shape == Enum.PartType.Ball) and Enum.PartType.Ball or nil }, model)
+            table.insert(pieces, { P = p, CF = src.CFrame, S = src.Size, T = src.Transparency })
+        end
+    end
+    -- the skid: a black rubber mark on the floor, laid along the launch as the body leaves
+    local skid = H.FxPart({ Transparency = 1, Size = V(0.1, 0.02, 1.5), CFrame = CFrame.new(ground + V(0, 0.04, 0)) }, model)
+    local sk = Instance.new("Decal")
+    sk.Texture = ART.sl_skid; sk.Face = Enum.NormalId.Top; sk.Color3 = P.Ink; sk.Transparency = 1; sk.Parent = skid
+    -- the trails: five violet light streaks from where it stood to its trailing edge
+    local host = H.FxPart({ Transparency = 1, Size = V(0.2, 0.2, 0.2), CFrame = CFrame.new(center) }, model)
+    local trails = {}
+    local bottom = ground.Y + 0.4
+    local hgt = math.max(2.4, (center.Y + bsz.Y / 2) - bottom)
+    for i = 1, 5 do
+        local y = bottom + hgt * (i - 0.5) / 5
+        local a0, a1 = H.Att(host, V(center.X, y, center.Z)), H.Att(host, V(center.X, y, center.Z))
+        local b = Instance.new("Beam")
+        b.Attachment0, b.Attachment1 = a0, a1
+        b.Color = ColorSequence.new(LUME, (i == 3) and HOT or LUME); b.LightEmission = 0.25; b.LightInfluence = 0; b.FaceCamera = true; b.Segments = 1
+        b.Width0, b.Width1 = 0.06, (i == 3) and 0.42 or 0.3
+        b.Transparency = NumberSequence.new(1)
+        b.Parent = host
+        trails[i] = { B = b, A0 = a0, A1 = a1, Y = y, Lag = math.abs(i - 3) * 0.04 }
+    end
+    local smoke = H.Emitter(H.Att(host, V(center.X, ground.Y + 0.4, center.Z)), { Name = "SlSmoke", Texture = H.SMOKE, Color = { C(206, 206, 210), C(150, 150, 156) },
+        Size = NumberSequence.new({ NumberSequenceKeypoint.new(0, 0.8), NumberSequenceKeypoint.new(1, 2.6) }), Life = { 0.6, 0.95 }, Speed = { 1.5, 4 },
+        Spread = 70, Dir = Enum.NormalId.Top, Drag = 3, Accel = V(0, 1.2, 0), Light = 0, Influence = 1, Spin = { -40, 40 }, Rot = { 0, 360 },
+        Trans = NumberSequence.new({ NumberSequenceKeypoint.new(0, 0.35), NumberSequenceKeypoint.new(1, 1) }) })
+    local launched = false
+    local GO = low and 0.04 or 0.1
+    H.Animate(1.0, function(t)
+        -- 1) CROUCH (0 -> GO): leans back from the run, squashes a touch
+        local crouch = math.sin(math.clamp(t / GO, 0, 1) * math.pi * 0.5)
+        -- 2) LAUNCH: a hard, accelerating run sideways (9 studs in 0.3 s, then gone)
+        local k = math.max(0, t - GO)
+        local run = 70 * k * k + 6 * k
+        local stretch = 1 + math.min(2.6, run * 0.35)
+        if t >= GO and not launched then
+            launched = true
+            smoke:Emit(low and 7 or 14)
+        end
+        local gone = math.clamp((t - GO - 0.2) / 0.15, 0, 1)
+        for _, pc in ipairs(pieces) do
+            local rel = pc.CF.Position - center
+            local along = rel:Dot(dir)
+            local lean = CFrame.fromAxisAngle(dir:Cross(Vector3.yAxis), math.rad(-14 * crouch + 10 * math.min(1, k * 6)))
+            local p = center + (rel - dir * along) + dir * (along * stretch) - dir * (0.35 * crouch * (1 - math.min(1, k * 8))) + dir * run
+            pc.P.CFrame = CFrame.new(p) * lean * pc.CF.Rotation
+            -- (stretched along the run: the part axis that lies most along the launch direction)
+            local ax = pc.CF:VectorToObjectSpace(dir)
+            local sx = V(math.abs(ax.X), math.abs(ax.Y), math.abs(ax.Z))
+            local m = math.max(sx.X, sx.Y, sx.Z)
+            local grow = V(sx.X == m and stretch or 1, (sx.Y == m and stretch or 1) * (1 - 0.12 * crouch * (1 - math.min(1, k * 8))), sx.Z == m and stretch or 1)
+            pc.P.Size = pc.S * grow
+            pc.P.Transparency = math.clamp(pc.T + gone, 0, 1)
+        end
+        -- the skid grows behind the launch, then fades (0.65 ->)
+        local len = math.clamp(run, 0, 6)
+        skid.Size = V(math.max(0.1, len), 0.02, 1.5)
+        skid.CFrame = CFrame.fromMatrix(ground + V(0, 0.04, 0) + dir * (len / 2), dir, Vector3.yAxis)
+        sk.Transparency = (t < GO) and 1 or math.clamp(0.1 + math.clamp((t - 0.65) / 0.35, 0, 1), 0, 1)
+        -- trails: from where it stood to just behind the body, fading from the tail (0.4 ->)
+        for _, tr in ipairs(trails) do
+            local kk = math.max(0, t - GO - tr.Lag)
+            local r = 70 * kk * kk + 6 * kk
+            local tail = math.clamp(run - 7 - 8 * math.max(0, t - 0.5), 0, run)
+            tr.A0.WorldPosition = V(center.X, tr.Y, center.Z) + dir * (tail - 0.3)
+            tr.A1.WorldPosition = V(center.X, tr.Y, center.Z) + dir * math.max(0, r - bsz.X * 0.4)
+            tr.B.Transparency = NumberSequence.new((t < GO + tr.Lag) and 1 or math.clamp(0.05 + math.clamp((t - 0.55) / 0.4, 0, 1), 0, 1))
+        end
+    end, function() model:Destroy() end)
+end
+
+-- ===== TACH banner (lower right, beside the weapon card): a round dial plate; the needle climbs one step per kill and hits
+-- the violet redline at 5; the shift lights over the dial fill with the streak =====
+local banner
+local NUMFONT = Font.new("rbxasset://fonts/families/RobotoCondensed.json", Enum.FontWeight.Bold)
+Set.Banner = function(H: any, streak: number)
+    local gui, root = H.BannerRoot("Slipstream", Vector2.new(180, 90), "Side")
+    if not root then return end
+    local New = H.New
+    if not banner or banner.Root ~= root then
+        local plate = New("Frame", { BackgroundColor3 = P.Plate, BackgroundTransparency = 0.06, BorderSizePixel = 0, Size = UDim2.fromScale(1, 1), ZIndex = 1 }, root,
+            { New("UICorner", { CornerRadius = UDim.new(0, 14) }), New("UIStroke", { Color = GOLD, Thickness = 1.5, Transparency = 0.15 }) })
+        -- the carbon inlay behind the dial (the plate's left half) + the pinstripe under the word
+        local carbon = New("ImageLabel", { BackgroundTransparency = 1, Image = ART.tex_sl_carbon, ScaleType = Enum.ScaleType.Tile, TileSize = UDim2.fromOffset(24, 24),
+            ImageColor3 = C(120, 124, 132), ImageTransparency = 0.8, Size = UDim2.fromScale(1, 1), ZIndex = 1 }, root, { New("UICorner", { CornerRadius = UDim.new(0, 14) }) })
+        local dial = New("ImageLabel", { BackgroundTransparency = 1, Image = ART.sl_dial, ImageColor3 = C(255, 255, 255), AnchorPoint = Vector2.new(0.5, 0.5),
+            Position = UDim2.fromOffset(46, 45), Size = UDim2.fromOffset(78, 78), ZIndex = 2 }, root)
+        local red = New("ImageLabel", { BackgroundTransparency = 1, Image = ART.sl_ring, ImageColor3 = LUME, AnchorPoint = Vector2.new(0.5, 0.5),
+            Position = UDim2.fromOffset(46, 45), Size = UDim2.fromOffset(92, 92), ImageTransparency = 1, ZIndex = 2 }, root)
+        local pivot = New("Frame", { BackgroundTransparency = 1, AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.fromOffset(46, 45), Size = UDim2.fromOffset(2, 2), ZIndex = 3 }, root)
+        local needle = New("Frame", { BorderSizePixel = 0, BackgroundColor3 = HOT, AnchorPoint = Vector2.new(0.5, 1), Position = UDim2.fromScale(0.5, 0.5),
+            Size = UDim2.fromOffset(3, 31), ZIndex = 4 }, pivot, { New("UICorner", { CornerRadius = UDim.new(0.5, 0) }) })
+        local hub = New("Frame", { BorderSizePixel = 0, BackgroundColor3 = GOLD, AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.fromOffset(46, 45),
+            Size = UDim2.fromOffset(9, 9), ZIndex = 5 }, root, { New("UICorner", { CornerRadius = UDim.new(0.5, 0) }) })
+        local num = New("TextLabel", { BackgroundTransparency = 1, AnchorPoint = Vector2.new(0, 0.5), Position = UDim2.fromOffset(96, 52), Size = UDim2.fromOffset(78, 30),
+            FontFace = NUMFONT, TextSize = 26, TextColor3 = P.Text, TextXAlignment = Enum.TextXAlignment.Left, Text = "", ZIndex = 3 }, root)
+        num:SetAttribute("KeepFont", true)
+        local word = New("TextLabel", { BackgroundTransparency = 1, AnchorPoint = Vector2.new(0, 0.5), Position = UDim2.fromOffset(96, 74), Size = UDim2.fromOffset(78, 16),
+            FontFace = NUMFONT, TextSize = 13, TextColor3 = GOLD, TextXAlignment = Enum.TextXAlignment.Left, Text = "", ZIndex = 3 }, root)
+        word:SetAttribute("KeepFont", true)
+        local lights = {}
+        for i = 1, 5 do
+            lights[i] = New("Frame", { BorderSizePixel = 0, BackgroundColor3 = OFF, AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.fromOffset(100 + (i - 1) * 15, 22),
+                Size = UDim2.fromOffset(10, 6), ZIndex = 3 }, root, { New("UICorner", { CornerRadius = UDim.new(0.5, 0) }) })
+        end
+        banner = { Root = root, Plate = plate, Carbon = carbon, Dial = dial, Red = red, Pivot = pivot, Needle = needle, Hub = hub, Num = num, Word = word,
+            Lights = lights, Token = 0, Ang = -135 }
+    end
+    local b = banner
+    b.Token += 1
+    local token = b.Token
+    local st = math.clamp(streak or 1, 1, 5)
+    root.Visible = true
+    b.Plate.BackgroundTransparency = 0.06
+    b.Carbon.ImageTransparency = 0.8
+    b.Dial.ImageTransparency = 0
+    b.Needle.BackgroundTransparency = 0
+    b.Hub.BackgroundTransparency = 0
+    b.Num.TextTransparency = 0
+    b.Word.TextTransparency = 0
+    b.Num.Text = "x" .. st
+    b.Word.Text = (st >= 5) and "REDLINE" or ((st >= 3) and "PUSHING" or "ON PACE")
+    b.Word.TextColor3 = (st >= 5) and LUME or GOLD
+    for i, l in ipairs(b.Lights) do
+        l.BackgroundTransparency = 0
+        l.BackgroundColor3 = (i < st) and ((i >= 5) and LUME or HOT:Lerp(LUME, 0.5)) or OFF
+    end
+    -- the needle: -135 deg (rest) -> +135 deg (the stop); one step per kill, the 5th lands in the redline (+105)
+    local from = b.Ang
+    local to = -135 + (st / 5) * 240
+    H.Animate(0.32, function(t)
+        if b.Token ~= token then return end
+        local k = t / 0.32
+        local c = 1.4
+        local e = 1 + (c + 1) * (k - 1) ^ 3 + c * (k - 1) ^ 2
+        b.Ang = from + (to - from) * e
+        b.Pivot.Rotation = b.Ang
+        local l = b.Lights[st]
+        if l then l.BackgroundColor3 = OFF:Lerp((st >= 5) and LUME or HOT:Lerp(LUME, 0.5), math.clamp(k * 2, 0, 1)) end
+        b.Red.ImageTransparency = (st >= 5) and (1 - 0.65 * math.sin(k * math.pi)) or 1
+    end)
+    task.delay(1.6, function()
+        if b.Token ~= token then return end
+        local ti = TweenInfo.new(0.3)
+        H.TweenService:Create(b.Plate, ti, { BackgroundTransparency = 1 }):Play()
+        H.TweenService:Create(b.Carbon, ti, { ImageTransparency = 1 }):Play()
+        H.TweenService:Create(b.Dial, ti, { ImageTransparency = 1 }):Play()
+        H.TweenService:Create(b.Red, ti, { ImageTransparency = 1 }):Play()
+        H.TweenService:Create(b.Needle, ti, { BackgroundTransparency = 1 }):Play()
+        H.TweenService:Create(b.Hub, ti, { BackgroundTransparency = 1 }):Play()
+        H.TweenService:Create(b.Num, ti, { TextTransparency = 1 }):Play()
+        H.TweenService:Create(b.Word, ti, { TextTransparency = 1 }):Play()
+        for _, l in ipairs(b.Lights) do H.TweenService:Create(l, ti, { BackgroundTransparency = 1 }):Play() end
+        task.delay(0.32, function() if b.Token == token then root.Visible = false; b.Ang = -135; b.Pivot.Rotation = -135 end end)
+    end)
+end
+
+-- ===== the PIT KNUCKLE (melee, Knuckle class): WeaponAssets.MeleeModels.Slipstream -- a trench knife: a carbon
+-- knuckle-bow guard shaped like a segment of a steering-wheel rim, wrapped in racing-green leather with a gold pinstripe,
+-- titanium fasteners, and a heat-tinted titanium spear-point blade =====
+Set.Melee = {
+    Skin = { Name = "Pit Knuckle", Price = 449, ProductId = 0,
+        Desc = "A trench knife built in the pit lane: a carbon knuckle bow shaped like a segment of a steering-wheel rim, wrapped in racing-green leather with a gold pinstripe and titanium fasteners, and a spear-point blade of heat-tinted titanium that shimmers blue to violet to gold. Punch, then slash. Every kill gets SLIPSTREAMED." },
+    Rig = { Class = "Knuckle", BladeLen = 0.6 },
+    FlatBlade = true,
+    InspectEvents = { { "Flip", "SlGlint" } },
+    Build = function(m: Model, o: any, H: any)
+        local parts = H.CloneModel(m, "MeleeModels", "Slipstream", VAR, nil)
+        -- (the knuckle bow is held in the fist: part of the grip for the clip check)
+        if parts.Guard then parts.Guard.Name = "GripBow" end
+        local blade = parts.Blade
+        if not blade then return end
+        local a0, a1 = Instance.new("Attachment"), Instance.new("Attachment")
+        a0.Name, a1.Name = "TrailBase", "TrailTip"
+        a0.Position = blade.CFrame:PointToObjectSpace(V(0, 0.35, 0))
+        a1.Position = blade.CFrame:PointToObjectSpace(V(0, 0.85, 0))
+        a0.Parent, a1.Parent = blade, blade
+        local tr = Instance.new("Trail")
+        tr.Attachment0, tr.Attachment1 = a0, a1
+        tr.Color = ColorSequence.new(HOT, LUME)
+        tr.Transparency = NumberSequence.new({ NumberSequenceKeypoint.new(0, 0.5), NumberSequenceKeypoint.new(1, 1) })
+        tr.LightEmission = 0.6; tr.LightInfluence = 0
+        tr.Lifetime = 0.12; tr.MinLength = 0.02; tr.FaceCamera = true
+        tr.Enabled = false
+        tr:SetAttribute("SwingTrail", true)
+        tr.Parent = blade
+    end,
+}
+
+-- ===== arms: RACING GLOVES + FIRE-SUIT SLEEVES (sculpted mesh pieces, WeaponAssets.ArmsModels.Slipstream) =====
+-- Glove: green-and-black racing glove, stitched contour panels and perforated knuckles; ONE effect: three tiny shift lights
+-- on the cuff that light in sequence now and then and on a kill. Sleeve: a racing-suit sleeve -- padded green contour
+-- panels, the gold pinstripe, a ribbed stretch cuff.
+Set.Glove = function(K: any)
+    local V3 = K.V
+    local parts = {
+        { Mesh = "Slipstream/Knuckle", MeshV = VAR, Size = V3(0.92, 0.15, 0.36), Off = V3(0, 0.53, -0.2), Seat = true },
+        { Mesh = "Slipstream/Cuff", MeshV = VAR, Size = V3(1.15, 1.15, 0.2), Off = V3(0, 0, 0.42) },
+        -- (touch-up, arms bar: a padded green back panel with its pinstripe between the knuckle plate and the cuff)
+        { Mesh = "Slipstream/Pad", MeshV = VAR, Size = V3(0.62, 0.09, 0.28), Off = V3(0, 0.52, 0.16), Seat = true },
+    }
+    for i = 1, 3 do
+        table.insert(parts, { Shape = "Ball", Size = V3(0.07, 0.025, 0.045), Off = V3(-0.14 + (i - 1) * 0.14, 0.585, 0.42), Color = (i == 3) and LUME or HOT:Lerp(LUME, 0.5),
+            Glow = true, Seat = true, Anim = "Blink", Count = 1, Dur = 0.12, Gap = 0.1, Period = 4.5, Phase = (i - 1) * 0.16, PulseMin = 0.05, PulseMax = 0.85, BurstOn = "Kill" })
+    end
+    return {
+        Id = "RacingGloves", Name = "Racing Gloves", Price = 449,
+        Desc = "Green-and-black racing gloves with stitched contour panels and perforated knuckles. Three tiny shift lights on the cuff light up in sequence now and then, and all at once when you get a kill. Part of the Slipstream set.",
+        Base = { Color = DARK:Lerp(BODY, 0.25), Material = Enum.Material.SmoothPlastic },
+        Parts = parts,
+    }
+end
+Set.Sleeve = function(K: any)
+    local V3 = K.V
+    return {
+        Id = "FireSuitSleeves", Name = "Fire-suit Sleeves", Price = 299,
+        Desc = "A racing-suit sleeve: padded racing-green contour panels with the gold pinstripe between them and a ribbed stretch cuff at the wrist. Part of the Slipstream set.",
+        Base = { Color = BODY:Lerp(C(0, 0, 0), 0.25), Material = Enum.Material.SmoothPlastic },
+        Parts = {
+            { Mesh = "Slipstream/Rib", MeshV = VAR, Size = V3(1.15, 1.15, 0.26), Off = V3(0, 0, -0.37) },
+            { Mesh = "Slipstream/Pad", MeshV = VAR, Size = V3(0.72, 0.1, 0.62), Off = V3(0, 0.52, 0.1), Seat = true },
+            { Mesh = "Slipstream/Pad", MeshV = VAR, Size = V3(0.62, 0.1, 0.56), Off = V3(-0.52, 0, 0.12), Rot = V3(0, 0, 90), Seat = true },
+            -- (touch-up, arms bar: the far-side pad and a second ribbed band at the elbow -- no single flat colour left)
+            { Mesh = "Slipstream/Pad", MeshV = VAR, Size = V3(0.62, 0.1, 0.56), Off = V3(0.52, 0, 0.12), Rot = V3(0, 0, -90), Seat = true },
+            { Mesh = "Slipstream/Rib", MeshV = VAR, Size = V3(1.15, 1.15, 0.2), Off = V3(0, 0, 0.43) },
+        },
+    }
+end
+
+-- ===== health bar: a carbon bar with a racing stripe, the fill a violet rev bar with a hot leading edge; a hit revs it
+-- (the edge flicks forward and settles) and throws sparks off the end =====
+Set.Bar = { Id = "Slipstream", Name = "Slipstream", Price = 149,
+    Desc = "A carbon bar with a gold pinstripe; the fill is a violet rev bar with a hot leading edge. Lost health BURNS off like a hot exhaust -- it glows and chars away -- and a hit revs the edge forward and throws sparks off the end. Part of the Slipstream set.",
+    Look = "Ink", FillColor = LUME, Tex = "tex_sl_bar", TexColor = LUME:Lerp(HOT, 0.2), TexSpeed = 0, ChipMotion = "Burn", Chip = P.TiB,
+    Back = C(14, 15, 18), Glow = LUME, Segments = 5, Decor = { "Pinstripe", "RevEdge", "Sparks" } }
+Set.BarDecor = {
+    -- (BARS v2) a gold pinstripe along the bottom of the fill (the livery line), every size
+    Pinstripe = function(ctx: any, K: any)
+        local f = K.Fader()
+        local ln = K.New("Frame", { BorderSizePixel = 0, BackgroundColor3 = GOLD, AnchorPoint = Vector2.new(0, 1), ZIndex = 11 }, ctx.Holder)
+        f.Add(ln, 0.1, "BackgroundTransparency")
+        return function(now, dt, alpha, info)
+            ln.Size = UDim2.fromOffset(math.max(0, ctx.W * math.clamp(info.Shown, 0, 1) - 2), math.max(1, math.floor(ctx.H * 0.16)))
+            ln.Position = UDim2.fromOffset(1, ctx.H - math.max(1, math.floor(ctx.H * 0.12)))
+            f.Apply(alpha)
+        end
+    end,
+    RevFill = function(ctx: any, K: any)
+        for _, c in ipairs(ctx.Inner:GetChildren()) do if c:IsA("ImageLabel") then c.ImageColor3 = LUME end end
+        return function() end
+    end,
+    RevEdge = function(ctx: any, K: any)
+        local f = K.Fader()
+        local edge = f.Add(K.Img(ART.sl_ring, { AnchorPoint = Vector2.new(0.5, 0.5), ImageColor3 = HOT, ZIndex = 12 }, ctx.Holder), 0.2)
+        local bar = Instance.new("Frame")
+        bar.BorderSizePixel = 0; bar.BackgroundColor3 = HOT; bar.AnchorPoint = Vector2.new(1, 0.5); bar.ZIndex = 12; bar.Parent = ctx.Holder
+        f.Add(bar, 0, "BackgroundTransparency")
+        local kick, lastHit = 0, 0
+        return function(now, dt, alpha, info)
+            if (info.Hit or 0) > lastHit + 0.05 then kick = 1 end
+            lastHit = info.Hit or 0
+            kick = math.max(0, kick - dt / 0.25)
+            local x = ctx.W * math.clamp(info.Shown, 0, 1)
+            bar.Size = UDim2.fromOffset(3, ctx.H * 0.9)
+            bar.Position = UDim2.fromOffset(x + kick * 4, ctx.H / 2)
+            edge.Size = UDim2.fromOffset(ctx.H * 1.6, ctx.H * 1.6)
+            edge.Position = UDim2.fromOffset(x + kick * 4, ctx.H / 2)
+            f.Apply(alpha)
+        end
+    end,
+    Sparks = function(ctx: any, K: any)
+        if ctx.Tier == "Small" then return function() end end
+        local f = K.Fader()
+        local sp = {}
+        for i = 1, 4 do
+            local s = Instance.new("Frame")
+            s.BorderSizePixel = 0; s.BackgroundColor3 = P.TiB; s.AnchorPoint = Vector2.new(0.5, 0.5); s.ZIndex = 13; s.Size = UDim2.fromOffset(3, 2)
+            s.Parent = ctx.Holder
+            sp[i] = { F = s, T = 99, VX = 0, VY = 0 }
+        end
+        local lastHit = 0
+        return function(now, dt, alpha, info)
+            if (info.Hit or 0) > lastHit + 0.05 then
+                for _, s in ipairs(sp) do s.T = 0; s.VX = 30 + math.random() * 60; s.VY = -20 - math.random() * 50 end
+            end
+            lastHit = info.Hit or 0
+            local x0 = ctx.W * math.clamp(info.Shown, 0, 1)
+            for _, s in ipairs(sp) do
+                s.T += dt
+                local k = s.T / 0.35
+                if k < 1 then
+                    s.F.Position = UDim2.fromOffset(x0 + s.VX * s.T, ctx.H / 2 + s.VY * s.T + 160 * s.T * s.T)
+                    s.F.BackgroundTransparency = 1 - alpha * (1 - k)
+                else
+                    s.F.BackgroundTransparency = 1
+                end
+            end
+        end
+    end,
+}
+
+local P1 = PALETTES[1]
+-- ===== UI theme v2 (FX roll-out 2026-10-14; v1 = the shared template: carbon texture + 4 corner sprites + watermark +
+-- streak ambient + the shared Sweep). Its own pieces in the icon look: a gold double PINSTRIPE that runs in along the top
+-- edge from the top-left corner and tapers off like a livery line, a quarter TACH in the lower-right corner (an ink-edged
+-- dial face, a redline arc, a needle idling with a little engine shake) with five SHIFT LIGHTS over it, a pinstripe under
+-- every title, and windows open with a REV: the needle sweeps to the redline as the shift lights come on 1 -> 5, then it
+-- drops back to idle. Colours from the theme table. =====
+local function SlFacet(ctx, o, lit, shade, th)
+    local g = Instance.new("UIGradient")
+    g.Color = ctx.UIStyle.Facet(lit, shade)
+    g.Rotation = ctx.UIStyle.FACET_ROT or 20
+    g.Parent = o
+    if th then ctx.UIStyle.InkEdge(th).Parent = o end
+    return g
+end
+local function SlDeco(ctx)
+    local t = ctx.Theme
+    if ctx.Kind ~= "Window" then return nil end -- (HUD panels stay clean)
+    local host = ctx.Root or ctx.Surface
+    local f = Instance.new("Frame")
+    f.Name = "SlOverlay"; f.BackgroundTransparency = 1; f.Size = UDim2.fromScale(1, 1); f.ZIndex = 20; f.Active = false; f.ClipsDescendants = true
+    f:SetAttribute("NoSkin", true); f:SetAttribute("Skinned", true)
+    f.Parent = host
+    local abs = host.AbsoluteSize
+    local small = math.min(abs.X, abs.Y) < 260
+    -- the pinstripe: two gold lines along the left of the top edge, tapering away (a livery line)
+    for i = 1, 2 do
+        local ln = Instance.new("Frame")
+        ln.Name = "SlStripe"; ln.BorderSizePixel = 0; ln.BackgroundColor3 = t.Gold; ln.ZIndex = f.ZIndex + 1
+        ln.Position = UDim2.fromOffset(6, 4 + (i - 1) * 5); ln.Size = UDim2.new(0.42 - 0.08 * (i - 1), 0, 0, (i == 1) and 3 or 2); ln.Parent = f
+        local g = Instance.new("UIGradient")
+        g.Transparency = NumberSequence.new({ NumberSequenceKeypoint.new(0, 0), NumberSequenceKeypoint.new(0.6, 0.1), NumberSequenceKeypoint.new(1, 1) }); g.Parent = ln
+        -- (a slanted start: a small parallelogram cap)
+        local cap = Instance.new("Frame")
+        cap.BorderSizePixel = 0; cap.BackgroundColor3 = t.Gold; cap.AnchorPoint = Vector2.new(0.5, 0.5); cap.Rotation = 30
+        cap.Size = UDim2.fromOffset(4, (i == 1) and 8 or 6); cap.Position = UDim2.new(0, -1, 0.5, 0); cap.ZIndex = ln.ZIndex; cap.Parent = ln
+    end
+    if small then return nil, { f } end
+    -- the tach: a quarter dial in the lower-right corner
+    local R = math.clamp(math.floor(math.min(abs.X, abs.Y) * 0.16), 40, 78)
+    local dial = Instance.new("Frame")
+    dial.Name = "SlTach"; dial.BorderSizePixel = 0; dial.BackgroundColor3 = Color3.new(1, 1, 1); dial.AnchorPoint = Vector2.new(0.5, 0.5)
+    dial.Size = UDim2.fromOffset(R * 2, R * 2); dial.Position = UDim2.new(1, -6, 1, -6); dial.ZIndex = f.ZIndex + 1; dial.Parent = f
+    local cr = Instance.new("UICorner"); cr.CornerRadius = UDim.new(0.5, 0); cr.Parent = dial
+    SlFacet(ctx, dial, t.DialLit, t.DialShade, 2)
+    -- ticks on the visible quarter (from 180 deg = left to 270 = up), the last two in the redline colour
+    local pivot = Instance.new("Frame")
+    pivot.BackgroundTransparency = 1; pivot.Size = UDim2.fromOffset(0, 0); pivot.Position = UDim2.fromScale(0.5, 0.5); pivot.ZIndex = dial.ZIndex + 1; pivot.Parent = dial
+    for i = 0, 6 do
+        local a = math.rad(180 + i * 15)
+        local tk = Instance.new("Frame")
+        tk.BorderSizePixel = 0; tk.BackgroundColor3 = (i >= 5) and t.Accent or t.Gold; tk.AnchorPoint = Vector2.new(0.5, 0.5)
+        tk.Size = UDim2.fromOffset((i >= 5) and 9 or 7, 2); tk.Rotation = math.deg(a)
+        tk.Position = UDim2.fromOffset(math.cos(a) * (R - 8), math.sin(a) * (R - 8)); tk.ZIndex = pivot.ZIndex; tk.Parent = pivot
+    end
+    local needleP = Instance.new("Frame")
+    needleP.BackgroundTransparency = 1; needleP.Size = UDim2.fromOffset(0, 0); needleP.Position = UDim2.fromScale(0.5, 0.5); needleP.ZIndex = dial.ZIndex + 2; needleP.Parent = dial
+    local needle = Instance.new("Frame")
+    needle.Name = "SlNeedle"; needle.BorderSizePixel = 0; needle.BackgroundColor3 = t.Accent; needle.AnchorPoint = Vector2.new(1, 0.5)
+    needle.Size = UDim2.fromOffset(R - 12, 3); needle.Position = UDim2.fromOffset(0, 0); needle.ZIndex = needleP.ZIndex; needle.Parent = needleP
+    ctx.UIStyle.InkEdge(1).Parent = needle
+    -- five shift lights above the tach
+    local lights = {}
+    for i = 1, 5 do
+        local l = Instance.new("Frame")
+        l.Name = "SlShift"; l.BorderSizePixel = 0; l.BackgroundColor3 = t.LightOff; l.AnchorPoint = Vector2.new(1, 1)
+        l.Size = UDim2.fromOffset(9, 9); l.Position = UDim2.new(1, -6 - (5 - i) * 12, 1, -R - 8); l.ZIndex = f.ZIndex + 1; l.Parent = f
+        local c = Instance.new("UICorner"); c.CornerRadius = UDim.new(0.5, 0); c.Parent = l
+        ctx.UIStyle.InkEdge(1).Parent = l
+        lights[i] = l
+    end
+    f:SetAttribute("SlRev", 0)
+    return function(now, dt)
+        -- idle: a little engine shake at 15 deg; the open's rev (attribute SlRev 0..1) pushes it to the redline
+        local rev = f:GetAttribute("SlRev") or 0
+        local idle = 24 + math.sin(now * 23) * 1.2 + math.sin(now * 7.1) * 0.8
+        needleP.Rotation = idle + (88 - idle) * rev
+        local lit = math.floor(rev * 5.01)
+        for i, l in ipairs(lights) do l.BackgroundColor3 = (i <= lit) and ((i >= 4) and t.Accent or t.Gold) or t.LightOff end
+    end, { f }
+end
+local function SlOpen(ctx)
+    -- REV: the needle sweeps to the redline and the shift lights come on 1 -> 5 (0.3 s), it holds a beat, drops back (0.2 s);
+    -- a pinstripe shoots along the top edge as it revs
+    local t = ctx.Theme
+    local f = (ctx.Root and ctx.Root:FindFirstChild("SlOverlay")) or ctx.Frame
+    local streak = Instance.new("Frame")
+    streak.Name = "SlStreak"; streak.BorderSizePixel = 0; streak.BackgroundColor3 = t.Gold; streak.AnchorPoint = Vector2.new(1, 0)
+    streak.Size = UDim2.new(0.3, 0, 0, 2); streak.Position = UDim2.new(0, 0, 0, 14); streak.ZIndex = f.ZIndex + 4; streak.Parent = f
+    local g = Instance.new("UIGradient")
+    g.Transparency = NumberSequence.new({ NumberSequenceKeypoint.new(0, 1), NumberSequenceKeypoint.new(0.8, 0.1), NumberSequenceKeypoint.new(1, 0) }); g.Parent = streak
+    local t0 = os.clock()
+    local conn
+    conn = game:GetService("RunService").RenderStepped:Connect(function()
+        local a = os.clock() - t0
+        local rev = (a < 0.3) and (a / 0.3) ^ 1.5 or ((a < 0.4) and 1 or math.max(0, 1 - (a - 0.4) / 0.2))
+        f:SetAttribute("SlRev", rev)
+        streak.Position = UDim2.new(math.min(1.4, a / 0.35 * 1.4), 0, 0, 14)
+        if a >= 0.6 then conn:Disconnect(); f:SetAttribute("SlRev", 0); streak:Destroy() end
+    end)
+end
+local function SlTitle(ctx)
+    -- a gold double pinstripe under the title, slanted at its start like a livery line
+    local bar, t = ctx.Title, ctx.Theme
+    local out = {}
+    for i = 1, 2 do
+        local ln = Instance.new("Frame")
+        ln.Name = "SlPin"; ln.BorderSizePixel = 0; ln.BackgroundColor3 = (i == 1) and t.Gold or t.Accent; ln.AnchorPoint = Vector2.new(0, 1)
+        ln.Position = UDim2.new(0, 12 + (i - 1) * 4, 1, -2 - (i - 1) * 4); ln.Size = UDim2.new(0.3 - 0.06 * (i - 1), 0, 0, (i == 1) and 3 or 2)
+        ln.ZIndex = bar.ZIndex + 1; ln.Parent = bar
+        local g = Instance.new("UIGradient")
+        g.Transparency = NumberSequence.new({ NumberSequenceKeypoint.new(0, 0), NumberSequenceKeypoint.new(0.75, 0.1), NumberSequenceKeypoint.new(1, 1) }); g.Parent = ln
+        table.insert(out, ln)
+    end
+    return out
+end
+-- numbers v3 (SKIN UI 2026-10-29, owner: numbers "unique to the skin and the colorways you have equipped"; the old gold
+-- underline went -- a line under a number reads as "wrong"): BRAKE IN. An italic racing face (Titillium Web) that shoots in
+-- from the right and brakes hard into place with a nose-dip, two STREAMLINES converging on it from behind (the tracer's) that
+-- shorten as it brakes. CRIT = the five SHIFT LIGHTS above it fill in a blink and flash at the redline (the tach colour);
+-- WEAK SPOT = a speed chevron in front in the pinstripe colour; a KILL = it LAUNCHES off sideways (the Slipstreamed kill),
+-- the streamlines stretching out behind it. Every colour is this copy's palette (P = the colourway: Racing Green, Crimson
+-- Livery, Midnight Livery, Papaya).
+local function SlMotion(e, age, pa, life)
+    local k = math.min(1, age / 0.14)
+    local e1 = 1 - (1 - k) ^ 3
+    local over = math.sin(math.clamp((age - 0.1) / 0.12, 0, 1) * math.pi) * 0.08
+    local side = 1.7 * (1 - e1) - over
+    local up = 0.5 * math.min(1, age / 0.5)
+    local dip = (age > 0.1 and age < 0.24) and math.sin((age - 0.1) / 0.14 * math.pi) * -3 or 0
+    local scale = 1 + ((pa < 0.06 and age > 0.08) and 0.05 or 0)
+    if e.Killed and e.KillAt then -- (off the line: a short crouch back, then it launches sideways)
+        local kt = os.clock() - e.KillAt
+        local go = math.max(0, kt - 0.28) -- (it sits a beat so the kill number reads, then goes)
+        side += 0.25 * math.min(1, kt / 0.12) - 7 * go * go
+        dip = (kt < 0.28) and 4 or -2
+    end
+    return up, side, scale, 0, 0, dip
+end
+local SL_LIGHTS = 5
+local function SlAccent(e)
+    local f = Instance.new("Frame")
+    f.Name = "SlStream"; f.BackgroundTransparency = 1; f.Size = UDim2.fromScale(1, 1); f.ZIndex = 0
+    for i = 1, 2 do
+        local s = Instance.new("Frame")
+        s.Name = "L" .. i; s.BorderSizePixel = 0; s.AnchorPoint = Vector2.new(1, 0.5); s.ZIndex = 0; s.Parent = f
+        local g = Instance.new("UIGradient")
+        g.Transparency = NumberSequence.new({ NumberSequenceKeypoint.new(0, 1), NumberSequenceKeypoint.new(0.7, 0.35), NumberSequenceKeypoint.new(1, 0) }); g.Parent = s
+    end
+    for i = 1, SL_LIGHTS do
+        local l = Instance.new("Frame")
+        l.Name = "Shift" .. i; l.BorderSizePixel = 0; l.AnchorPoint = Vector2.new(0.5, 1); l.Size = UDim2.fromOffset(5, 5); l.ZIndex = 2; l.Parent = f
+        local st = Instance.new("UIStroke"); st.Color = P.Ink; st.Thickness = 1; st.Parent = l
+    end
+    return f
+end
+local function SlAccentStep(e, f, age, pa, alpha)
+    local tb = e.Label.TextBounds
+    local now = os.clock()
+    local kt = (e.Killed and e.KillAt) and (now - e.KillAt) or nil
+    -- the streamlines: they converge on the number's tail, long while it brakes in, short when it sits, stretched on a launch
+    local k = math.min(1, age / 0.18)
+    local len = 60 * (1 - k) + 26
+    if kt then len = 26 + 110 * math.min(1, math.max(0, kt - 0.25) / 0.3) end
+    for i = 1, 2 do
+        local s = f:FindFirstChild("L" .. i)
+        if s then
+            s.Visible = not e.Dot
+            local dy = ((i == 1) and -1 or 1) * math.floor(tb.Y * 0.2)
+            -- (they sit behind the right end -- the number travels right to left -- and launch the other way on a kill)
+            local x = kt and (math.floor(tb.X / 2) + 6) or (math.floor(tb.X / 2) + 4)
+            s.AnchorPoint = Vector2.new(0, 0.5)
+            s.Position = UDim2.new(0.5, x, 0.5, dy)
+            s.Size = UDim2.fromOffset(math.floor(len * ((i == 1) and 1 or 0.7)), (i == 1) and 2 or 1)
+            s.Rotation = ((i == 1) and 1 or -1) * 3
+            s.BackgroundColor3 = kt and P.Lume or P.Detail
+            s.BackgroundTransparency = math.clamp(alpha, 0, 1)
+            local g = s:FindFirstChildOfClass("UIGradient"); if g then g.Rotation = 180 end
+        end
+    end
+    -- the shift lights over a crit: they fill left to right in 0.12 s, then all flash in the tach colour (the redline)
+    local on = e.Crit and not e.Dot
+    for i = 1, SL_LIGHTS do
+        local l = f:FindFirstChild("Shift" .. i)
+        if l then
+            l.Visible = on
+            if on then
+                l.Position = UDim2.new(0.5, (i - 3) * 8, 0.5, -math.floor(tb.Y / 2) - 1)
+                local lit = pa >= (i - 1) * 0.025
+                local flash = pa > 0.14 and pa < 0.5 and (math.floor(pa * 14) % 2 == 0)
+                local col = (i <= 3) and P.Detail or P.Lume
+                if flash then col = P.Lume:Lerp(P.Hot, 0.5) end
+                l.BackgroundColor3 = lit and col or P.Off
+                l.BackgroundTransparency = math.clamp(alpha + (lit and 0 or 0.3), 0, 1)
+                l:FindFirstChildOfClass("UIStroke").Transparency = math.clamp(alpha + 0.2, 0, 1)
+            end
+        end
+    end
+end
+-- ===== UI THEME v4 (SKIN UI THEMES, roll-out 2026-10-29): the clean language in this colourway's colours (UITheme Clean)
+-- + two touches of an endurance-racing prototype. Hooks read only the palette they get (a colourway copy shares these):
+--   TAB MARK  a PINSTRIPE in the livery colour that tapers in from the left (a streamline), ending in the five SHIFT LIGHTS;
+--             on the top bar they fill with the revs now and then and all flash at the redline in the tach colour
+--   FIELD     the car's LIVERY: a double pinstripe (a line + a hairline) running along the bottom of the screen that kicks up
+--             into a diagonal at the right and runs out of the screen, and a light streak that runs along it now and then
+local SL_CLEAN = {
+    Field = P.Dark:Lerp(P.Plate, 0.4), Surface = P.Plate:Lerp(P.Mid, 0.35), Raised = P.Mid:Lerp(P.Body, 0.35),
+    Hover = P.Body:Lerp(P.Mid, 0.3):Lerp(P.Detail, 0.05), Well = P.Ink, Line = P.Mid:Lerp(P.Detail, 0.22), Tip = P.Dark:Lerp(P.Plate, 0.5),
+    Accent = P.Lume, Mark = P.Detail, Hair = P.Detail,
+    Text = P.Text, Sub = P.Text:Lerp(P.Mid, 0.42), Muted = P.Mid:Lerp(P.Text, 0.42), Ink = P.Ink,
+    Stripe = P.Detail, Tach = P.Lume, LightOff = P.Off, Redline = P.Lume:Lerp(P.Hot, 0.4),
+}
+-- (HudThemes.Variant keeps a colourway copy's Clean colour only where it DIFFERS from colourway 1's -- an equal one goes through
+-- the hue map and can come out wrong: nudge every copy colour a hair so this palette wins)
+if VAR ~= 1 then for k, v in pairs(SL_CLEAN) do if typeof(v) == "Color3" then SL_CLEAN[k] = v:Lerp(Color3.new(0, 0, 0), 0.003) end end end
+local function SlLine(parent, a, b, th, col, z, name)
+    local d = b - a
+    local f = Instance.new("Frame")
+    f.Name = name or "SlLine"; f.BorderSizePixel = 0; f.BackgroundColor3 = col; f.AnchorPoint = Vector2.new(0.5, 0.5)
+    f.Size = UDim2.fromOffset(math.max(1, d.Magnitude), th); f.Position = UDim2.fromOffset((a.X + b.X) / 2, (a.Y + b.Y) / 2)
+    f.Rotation = math.deg(math.atan2(d.Y, d.X)); f.ZIndex = z; f.Parent = parent
+    return f
+end
+SL_CLEAN.TabMark = function(mark, Q)
+    -- (the taper is a gradient over the mark's own colour; the lights are small offset frames inside its right end, anchored
+    -- left: tab buttons size themselves to their children)
+    local g = Instance.new("UIGradient")
+    g.Transparency = NumberSequence.new({ NumberSequenceKeypoint.new(0, 0.85), NumberSequenceKeypoint.new(0.45, 0.2), NumberSequenceKeypoint.new(1, 0) })
+    g.Parent = mark
+    local made = { g }
+    for i = 1, SL_LIGHTS do
+        local l = Instance.new("Frame")
+        l.Name = "SlShift" .. i; l.BorderSizePixel = 0; l.BackgroundColor3 = Q.LightOff; l.AnchorPoint = Vector2.new(0, 0)
+        l.Position = UDim2.new(1, -4 - (SL_LIGHTS - i) * 6, 0, -6); l.Size = UDim2.fromOffset(4, 4); l.ZIndex = mark.ZIndex + 1; l.Parent = mark
+        table.insert(made, l)
+    end
+    return made
+end
+SL_CLEAN.Sig = function(ctx)
+    local Q, f = ctx.P, ctx.Frame
+    local cam = workspace.CurrentCamera
+    local vw = (cam and cam.ViewportSize.X or 1400)
+    local vh = (cam and cam.ViewportSize.Y or 800)
+    -- (field pixels -> this layer's own units: the menu gui may carry a UIScale)
+    local us, o = 1, f
+    while o and not o:IsA("BasePlayerGui") do -- (the ScreenGui's own UIScale counts too)
+        local u = o:FindFirstChildOfClass("UIScale"); if u then us *= u.Scale end
+        o = o.Parent
+    end
+    local W = (f.AbsoluteSize.X > 0 and f.AbsoluteSize.X or vw) / us
+    local H = (f.AbsoluteSize.Y > 0 and f.AbsoluteSize.Y or vh) / us
+    -- the livery: along the bottom, then a kick up to the right edge (a body line), drawn as a line + a hairline 4 px apart
+    local y = H - 12 -- (low: clear of the buttons that sit along the bottom margin)
+    local kx = W * 0.64
+    local rise = math.clamp(math.floor(H * 0.22), 80, 200)
+    local path = { Vector2.new(-4, y), Vector2.new(kx, y), Vector2.new(W + 4, y - rise) }
+    local holder = Instance.new("Frame")
+    holder.Name = "SlLivery"; holder.BackgroundTransparency = 1; holder.Size = UDim2.fromScale(1, 1); holder.ZIndex = 0; holder.Parent = f
+    for i = 1, #path - 1 do
+        local a, b = path[i], path[i + 1]
+        local main = SlLine(holder, a, b, 2, Q.Stripe, 0, "SlPin")
+        main.BackgroundTransparency = 0.25
+        local d = (b - a).Unit
+        local nrm = Vector2.new(d.Y, -d.X) * 5 -- (the hairline runs over the line)
+        local hair = SlLine(holder, a + nrm, b + nrm, 1, Q.Stripe, 0, "SlHair")
+        hair.BackgroundTransparency = 0.55
+    end
+    -- the light streak that runs along the stripe now and then (left to right, then up the kick)
+    local streak = Instance.new("Frame")
+    streak.Name = "SlStreak"; streak.BorderSizePixel = 0; streak.BackgroundColor3 = Q.Tach; streak.AnchorPoint = Vector2.new(1, 0.5)
+    streak.Size = UDim2.fromOffset(70, 2); streak.ZIndex = 1; streak.BackgroundTransparency = 1; streak.Parent = holder
+    local sg = Instance.new("UIGradient")
+    sg.Transparency = NumberSequence.new({ NumberSequenceKeypoint.new(0, 1), NumberSequenceKeypoint.new(1, 0) }); sg.Parent = streak
+    local L1 = (path[2] - path[1]).Magnitude
+    local L2 = (path[3] - path[2]).Magnitude
+    local seed = math.random() * 7
+    return function(now, _dt)
+        local k = ((now + seed) % 7) / 1.3
+        if k < 1 then
+            local d = (L1 + L2) * (k ^ 1.4)
+            local p, rot
+            if d < L1 then p = path[1] + (path[2] - path[1]).Unit * d; rot = 0
+            else p = path[2] + (path[3] - path[2]).Unit * (d - L1); rot = math.deg(math.atan2(path[3].Y - path[2].Y, path[3].X - path[2].X)) end
+            streak.Position = UDim2.fromOffset(p.X, p.Y)
+            streak.Rotation = rot
+            streak.BackgroundTransparency = 0.05
+        elseif streak.BackgroundTransparency < 1 then
+            streak.BackgroundTransparency = 1
+        end
+        -- the shift lights on the selected tab's pinstripe: every ~5 s the revs climb through them and they flash at the redline
+        local r = ((now + seed) % 5)
+        local n = (r < 1) and math.floor(r / 0.2) + 1 or 0
+        local flash = r >= 1 and r < 1.4 and (math.floor(r * 10) % 2 == 0)
+        for _, m in ipairs(ctx.Marks()) do
+            if m.Visible then
+                for i = 1, SL_LIGHTS do
+                    local l = m:FindFirstChild("SlShift" .. i)
+                    if l then
+                        local c = flash and Q.Redline or ((i <= n) and ((i <= 3) and Q.Stripe or Q.Tach) or Q.LightOff)
+                        if l.BackgroundColor3 ~= c then l.BackgroundColor3 = c end
+                    end
+                end
+            end
+        end
+    end, nil
+end
+local function PG(top, bottom) return { Top = top, Bottom = bottom } end
+Set.Theme = { Name = "Slipstream", Desc = "Menus as a race car's cockpit: dark racing-green glass over carbon weave, a gold livery pinstripe running in along the top, a tach in the corner whose needle idles with a little engine shake under five shift lights, and a pinstripe under every title.",
+    Panel = PG(C(12, 36, 26), C(4, 12, 8)), Card = PG(C(20, 50, 36), C(8, 20, 14)), Title = PG(C(30, 110, 70), C(10, 40, 26)),
+    Accent = C(130, 110, 255), Accent2 = C(210, 170, 70), HpFill = C(130, 110, 255), HpBg = C(14, 18, 24), XpFill = C(210, 170, 70), Text = C(230, 245, 230),
+    Gold = C(214, 172, 72), DialLit = C(34, 40, 38), DialShade = C(10, 14, 12), LightOff = C(30, 34, 40),
+    Tex = "tex_sl_carbon", TexT = 0.9, TexTile = 48,
+    Emblem = "EmblemSlipstream", BorderThick = 2,
+    Deco = SlDeco, OpenFn = SlOpen, TitleDeco = SlTitle,
+    Clean = SL_CLEAN, -- (SKIN UI THEMES roll-out: the clean palette + pinstripe tab marks with shift lights + the livery stripe; the old art is not drawn)
+    -- (SKIN UI 2026-10-29: BRAKE IN -- streamlines behind, shift lights on crits, a launch on a kill; no underline; this colourway's P)
+    Numbers = { Font = "TitilliumWeb", Italic = true, Glyph = "»", Motion = SlMotion, Accent = SlAccent, AccentStep = SlAccentStep,
+        Normal = P.Text, Crit = P.Lume:Lerp(P.Hot, 0.15), Weak = P.Detail:Lerp(P.Text, 0.3), Stroke = P.Ink, Size = 1.05 } }
+
+-- ===== bundle / kill effect / store hero =====
+Set.KillEffect = { Id = "Slipstreamed", Name = "Slipstreamed", Image = ART.sl_emblem,
+    How = "Own any Slipstream skin (or the Slipstream bundle)",
+    Desc = "Pit stop: the enemy crouches back for a beat, then launches sideways off the line, stretching into a streak with violet light trails behind it, leaving a black skid mark on the floor and a puff of tyre smoke where it stood. With the Tach kill banner." }
+Set.Bundle = { Id = "SlipstreamBundle", Name = "Slipstream Bundle", Price = 2199, BP = 799, ProductId = 0,
+    Desc = "The whole Slipstream set: the Slipstream Hunting Rifle, MP7 and 416, the Pit Knuckle, Racing Gloves + Fire-suit Sleeves, the Slipstream health bar, the Slipstream UI theme and the Slipstreamed kill effect.",
+    Contents = { "WeaponSkin:SlipstreamSCOUT", "WeaponSkin:SlipstreamMP7", "WeaponSkin:SlipstreamHK416", "MeleeSkin:Slipstream", "Glove:RacingGloves", "Sleeve:FireSuitSleeves",
+        "HealthBar:Slipstream", "KillEffect:Slipstreamed" } }
+Set.Hero = { Grad = { C(20, 70, 46), C(4, 12, 8) }, Stroke = GOLD, Emblem = ART.sl_emblem, Name = C(230, 245, 230), Chip = C(70, 56, 150) }
+
+-- (the first banner of a session would show blank sprites while they download) the client fetches the banner + theme art
+-- when the set loads
+if game:GetService("RunService"):IsClient() then
+    task.spawn(function()
+        pcall(function()
+            local list = {}
+            for _, k in ipairs({ "sl_dial", "sl_ring", "sl_streak", "tex_sl_carbon", "EmblemSlipstream", "SpStreak" }) do
+                if ART[k] and ART[k] ~= "" then table.insert(list, ART[k]) end
+            end
+            game:GetService("ContentProvider"):PreloadAsync(list)
+        end)
+    end)
+end
+
+return Set

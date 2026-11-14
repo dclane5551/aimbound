@@ -1,0 +1,1102 @@
+--!nocheck
+-- ===================================================================================================================
+-- TACTILE (Skins V3, bundle 5 of docs/SKINS_V3_PLAN.md; SKINS BUILDER 4 "skins4"): MP5 + TAR-21 + KSG | Field Hatchet |
+-- 1,199 BP. The gun as a beautifully designed OBJECT: moulded soft-touch housings with flat faces and radiused edges, an
+-- anodised top band, parting lines and Torx screws, perforated speaker fields, one small orange control on every gun and
+-- ONE light language -- a coral standby LED and a DOT-MATRIX GRILLE whose holes are lit from behind. The guns are
+-- RESCULPTED models (WeaponAssets.SkinModels.Tactile_<GUN>, built by tools/skins_v3/tactile_build.py in
+-- art/weapons/SkinsV3_Tactile.blend, painted by tools/skin_v3_paint.py with tools/skins_v3/tactile.json); this module
+-- brings their motion, effects, sounds and the rest of the bundle.
+--   GRILLE   the camera-side dot matrix is the gun's AMMO METER: one lit column per share of the magazine, the rest dark
+--            "off" dots; every shot knocks the lit columns down a row or two and they bounce back (a level meter); a
+--            reload drains it, then it charges back column by column; the draw sweeps it up like a device powering on
+--   KNOB     a knurled hi-fi knob above the grip turns one detent (30 deg) per shot; drawn, it spins back to zero and
+--            clicks into place; the inspect runs it through every detent
+--   LED      the coral standby LED breathes; it blinks twice on the draw and flares when a magazine seats
+--   SLIDER   (TAR-21) an orange slider runs back in its slot on a reload and snaps home; flicked on the inspect
+-- Muzzle: a neat compact flash + a small coral ring. Tracer: a clean line of evenly spaced travelling DOTS. Impact: a
+-- rounded-square press ripple + a puff of dust. Kill OFF SWITCH: a selection box frames the body, folds to a line and a
+-- dot above the head and blinks out with a soft click. Banner: a rounded plate with five toggle switches, one flipped
+-- per kill. Original design (plan "Originality"): no black slab with a single white ring, no large white disc on the
+-- receiver, no black / white split, no orange body -- an industrial-design object with its own lit dot-matrix meter.
+-- ===================================================================================================================
+local Set = { Kind = "Tactile" }
+
+-- COLOURWAYS: each colourway is a whole palette -- the module copy SkinFX loads for colourway v has attribute Colorway = v.
+-- The painted model maps are separate SurfaceAppearances (SkinFX.V3Swap); Colorways.Sets.Tactile lists the names.
+local VAR = script:GetAttribute("Colorway") or 1
+local C = Color3.fromRGB
+local V = Vector3.new
+local PALETTES = {
+    { Name = "Graphite", Body = C(50, 48, 53), Mid = C(62, 65, 74), Detail = C(22, 22, 25), Dark = C(9, 9, 11), Accent = C(236, 98, 28),
+      Lume = C(255, 110, 90), Hot = C(255, 214, 196), Off = C(70, 40, 36), Text = C(236, 236, 240), Ink = C(7, 7, 9), Plate = C(30, 29, 32) },
+    -- (Update 6, owner: "Tactile set green colorway looks horrible": LICHEN -> CLARET) deep claret soft-touch, warm
+    -- gunmetal anodising, champagne-brass controls, a warm white standby light
+    { Name = "Claret", Body = C(78, 26, 38), Mid = C(86, 80, 88), Detail = C(30, 13, 19), Dark = C(11, 5, 8), Accent = C(226, 186, 112),
+      Lume = C(255, 212, 158), Hot = C(255, 240, 222), Off = C(66, 40, 34), Text = C(242, 234, 236), Ink = C(9, 4, 6), Plate = C(42, 18, 24) },
+    { Name = "Ultramarine", Body = C(28, 43, 102), Mid = C(72, 80, 98), Detail = C(12, 18, 46), Dark = C(6, 8, 18), Accent = C(240, 192, 44),
+      Lume = C(255, 206, 80), Hot = C(255, 240, 200), Off = C(56, 50, 34), Text = C(232, 236, 248), Ink = C(4, 6, 16), Plate = C(18, 26, 60) },
+}
+local P = PALETTES[VAR] or PALETTES[1]
+local BODY, MID, DARK, ACCENT, LUME, HOT, OFF = P.Body, P.Mid, P.Dark, P.Accent, P.Lume, P.Hot, P.Off
+Set.Palettes = PALETTES
+Set.Colors = { Glow = LUME, Hot = HOT, Accent = ACCENT, Mid = MID }
+-- art (tools/make_tactile_art.py, uploaded as decals; these are the IMAGE ids, resolved in Studio)
+local A = "rbxassetid://"
+Set.Art = {
+    EmblemTactile = A .. "79616408315683", tc_emblem = A .. "79616408315683", tc_emblem_mask = A .. "96879676694368", tc_ring = A .. "120759279020245",
+    tc_dots = A .. "135078608194470", tc_press = A .. "77818201934913", tc_box = A .. "104801586413753", tc_corner = A .. "105166658985667",
+    tex_tc_grille = A .. "127586431327682", tex_tc_bar = A .. "75984081105801",
+    tex_tc_neoprene = A .. "128792060544096", tex_tc_softgrip = A .. "103485413340264", -- (skins11 touch-up: arm materials)
+}
+local ART = Set.Art
+
+local TAU = math.pi * 2
+local DETENT = math.pi / 6
+local function smooth(x) x = math.clamp(x, 0, 1) return x * x * (3 - 2 * x) end
+local function pulse(t, w) return math.exp(-(t / w) ^ 2) end
+
+-- BEGIN TACTILE DATA (generated by tools/skins_v3/tactile_lua.py from the sculpts -- do not edit by hand)
+local DATA = {
+    MP5 = {
+        Eq = {
+            { C = V(-0.2815, 0.202, -0.0529), S = V(0.0226, 0.12, 0.003), Col = 1, Cols = 9, Rows = 4 },
+            { C = V(-0.2525, 0.202, -0.0529), S = V(0.0226, 0.12, 0.003), Col = 2, Cols = 9, Rows = 4 },
+            { C = V(-0.2235, 0.202, -0.0529), S = V(0.0226, 0.12, 0.003), Col = 3, Cols = 9, Rows = 4 },
+            { C = V(-0.1945, 0.202, -0.0529), S = V(0.0226, 0.12, 0.003), Col = 4, Cols = 9, Rows = 4 },
+            { C = V(-0.1655, 0.202, -0.0529), S = V(0.0226, 0.12, 0.003), Col = 5, Cols = 9, Rows = 4 },
+            { C = V(-0.1365, 0.202, -0.0529), S = V(0.0226, 0.12, 0.003), Col = 6, Cols = 9, Rows = 4 },
+            { C = V(-0.1075, 0.202, -0.0529), S = V(0.0226, 0.12, 0.003), Col = 7, Cols = 9, Rows = 4 },
+            { C = V(-0.0785, 0.202, -0.0529), S = V(0.0226, 0.12, 0.003), Col = 8, Cols = 9, Rows = 4 },
+            { C = V(-0.0495, 0.202, -0.0529), S = V(0.0226, 0.12, 0.003), Col = 9, Cols = 9, Rows = 4 },
+        },
+        Led = {
+            { C = V(0.178, 0.247, -0.0618), S = V(0.026, 0.009, 0.003), Rz = 0.0 },
+        },
+        Knob = { C = V(0.06, 0.19, -0.0915), R = 0.044, Dot = V(0.06, 0.2173, -0.0912), DotS = 0.0105 },
+    },
+    TAR21 = {
+        Eq = {
+            { C = V(-0.5855, 0.092, -0.0239), S = V(0.0226, 0.12, 0.003), Col = 1, Cols = 12, Rows = 4 },
+            { C = V(-0.5565, 0.092, -0.0239), S = V(0.0226, 0.12, 0.003), Col = 2, Cols = 12, Rows = 4 },
+            { C = V(-0.5275, 0.092, -0.0239), S = V(0.0226, 0.12, 0.003), Col = 3, Cols = 12, Rows = 4 },
+            { C = V(-0.4985, 0.092, -0.0239), S = V(0.0226, 0.12, 0.003), Col = 4, Cols = 12, Rows = 4 },
+            { C = V(-0.4695, 0.092, -0.0239), S = V(0.0226, 0.12, 0.003), Col = 5, Cols = 12, Rows = 4 },
+            { C = V(-0.4405, 0.092, -0.0239), S = V(0.0226, 0.12, 0.003), Col = 6, Cols = 12, Rows = 4 },
+            { C = V(-0.4115, 0.092, -0.0239), S = V(0.0226, 0.12, 0.003), Col = 7, Cols = 12, Rows = 4 },
+            { C = V(-0.3825, 0.092, -0.0239), S = V(0.0226, 0.12, 0.003), Col = 8, Cols = 12, Rows = 4 },
+            { C = V(-0.3535, 0.092, -0.0239), S = V(0.0226, 0.12, 0.003), Col = 9, Cols = 12, Rows = 4 },
+            { C = V(-0.3245, 0.092, -0.0239), S = V(0.0226, 0.12, 0.003), Col = 10, Cols = 12, Rows = 4 },
+            { C = V(-0.2955, 0.092, -0.0239), S = V(0.0226, 0.12, 0.003), Col = 11, Cols = 12, Rows = 4 },
+            { C = V(-0.2665, 0.092, -0.0239), S = V(0.0226, 0.12, 0.003), Col = 12, Cols = 12, Rows = 4 },
+        },
+        Led = {
+            { C = V(0.145, 0.188, -0.0328), S = V(0.026, 0.009, 0.003), Rz = 0.0 },
+        },
+        Knob = { C = V(0.035, 0.104, -0.0625), R = 0.044, Dot = V(0.035, 0.1313, -0.0622), DotS = 0.0105 },
+    },
+    KSG = {
+        Eq = {
+            { C = V(-0.5605, 0.1605, -0.0629), S = V(0.0226, 0.149, 0.003), Col = 1, Cols = 12, Rows = 5 },
+            { C = V(-0.5315, 0.1605, -0.0629), S = V(0.0226, 0.149, 0.003), Col = 2, Cols = 12, Rows = 5 },
+            { C = V(-0.5025, 0.1605, -0.0629), S = V(0.0226, 0.149, 0.003), Col = 3, Cols = 12, Rows = 5 },
+            { C = V(-0.4735, 0.1605, -0.0629), S = V(0.0226, 0.149, 0.003), Col = 4, Cols = 12, Rows = 5 },
+            { C = V(-0.4445, 0.1605, -0.0629), S = V(0.0226, 0.149, 0.003), Col = 5, Cols = 12, Rows = 5 },
+            { C = V(-0.4155, 0.1605, -0.0629), S = V(0.0226, 0.149, 0.003), Col = 6, Cols = 12, Rows = 5 },
+            { C = V(-0.3865, 0.1605, -0.0629), S = V(0.0226, 0.149, 0.003), Col = 7, Cols = 12, Rows = 5 },
+            { C = V(-0.3575, 0.1605, -0.0629), S = V(0.0226, 0.149, 0.003), Col = 8, Cols = 12, Rows = 5 },
+            { C = V(-0.3285, 0.1605, -0.0629), S = V(0.0226, 0.149, 0.003), Col = 9, Cols = 12, Rows = 5 },
+            { C = V(-0.2995, 0.1605, -0.0629), S = V(0.0226, 0.149, 0.003), Col = 10, Cols = 12, Rows = 5 },
+            { C = V(-0.2705, 0.1605, -0.0629), S = V(0.0226, 0.149, 0.003), Col = 11, Cols = 12, Rows = 5 },
+            { C = V(-0.2415, 0.1605, -0.0629), S = V(0.0226, 0.149, 0.003), Col = 12, Cols = 12, Rows = 5 },
+        },
+        Led = {
+            { C = V(0.03, 0.235, -0.0718), S = V(0.026, 0.009, 0.003), Rz = 0.0 },
+        },
+        Knob = { C = V(-0.085, 0.118, -0.1015), R = 0.044, Dot = V(-0.085, 0.1453, -0.1012), DotS = 0.0105 },
+    },
+    Hatchet = {
+        Eq = {
+        },
+        Led = {
+            { C = V(0.0, 0.74, -0.0385), S = V(0.024, 0.008, 0.003), Rz = 0.0 },
+            { C = V(0.0, 0.74, 0.0385), S = V(0.024, 0.008, 0.003), Rz = 0.0 },
+        },
+    },
+}
+-- END TACTILE DATA
+
+local function GunDesc(gun: string): string
+    local what = (gun == "TAR21") and "one seamless moulded shell from the butt to the nose with an orange slider in a slot on its side"
+        or (gun == "KSG") and "a moulded body, an anodised tube cover with two speaker windows and a ribbed soft-touch pump with an orange flange"
+        or "a moulded receiver housing, a perforated handguard and a frame stock with a rubber butt panel"
+    return "The gun as a beautifully designed object: " .. what .. ", in warm graphite soft-touch with an anodised top band, parting lines and Torx screws. Above the grip a knurled knob clicks one detent with every shot; beside it a perforated dot-matrix grille lights up from behind as your ammo meter, bouncing with each shot and charging back on a reload, and a coral standby LED breathes. Travelling-dot tracers, impacts that press into the surface, and every kill hits the OFF SWITCH."
+end
+
+-- ===== the guns =====
+Set.GunSkins = {
+    { Id = "TactileMP5", Name = "Tactile MP5", Gun = "MP5", Rarity = "Mythic", Price = 399, ProductId = 0, Desc = GunDesc("MP5"),
+      Model = "Tactile_MP5", V3 = true, Color = LUME, Deco = "TactileGun", Fit = { G = "MP5" } },
+    { Id = "TactileTAR21", Name = "Tactile TAR-21", Gun = "TAR21", Rarity = "Mythic", Price = 399, ProductId = 0, Desc = GunDesc("TAR21"),
+      Model = "Tactile_TAR21", V3 = true, Color = LUME, Deco = "TactileGun", Fit = { G = "TAR21" } },
+    { Id = "TactileKSG", Name = "Tactile KS7", Gun = "KSG", Rarity = "Mythic", Price = 399, ProductId = 0, Desc = GunDesc("KSG"),
+      Model = "Tactile_KSG", V3 = true, Color = LUME, Deco = "TactileGun", Fit = { G = "KSG" } },
+}
+
+-- ===== the lit bits, built as Roblox parts on the sculpt (they recolour with the palette): the grille's columns, the
+-- standby LED, the knob's index dot =====
+Set.Build = {}
+Set.Build.TactileGun = function(model: Model, frame: BasePart, f: any, forView: boolean, H: any)
+    local d = DATA[f.G or ""]
+    if not d then return end
+    local base = frame.CFrame
+    for _, e in ipairs(d.Eq or {}) do
+        -- one Neon bar behind each hole column: it grows from the bottom row (ScaleDrive, Y only) and dims to the "off"
+        -- glow (GlowDrive) -- seen only through the holes of the perforated plate in front of it
+        local p = H.Deco(model, { Name = "EqCol", Size = e.S, CFrame = base * CFrame.new(e.C), Color = LUME, Glow = true, Zone = "Grille" })
+        p:SetAttribute("ScaleDrive", "Eq" .. e.Col)
+        p:SetAttribute("ScaleFrac", V(0, -0.5, 0))
+        p:SetAttribute("ScaleAxes", V(0, 1, 0))
+        p:SetAttribute("ScaleMin", 0.02)
+        p:SetAttribute("GlowDrive", "EqG" .. e.Col)
+        p:SetAttribute("GlowCold", 0.82)
+        p:SetAttribute("GlowHot", 0.0)
+    end
+    for _, l in ipairs(d.Led or {}) do
+        local p = H.Deco(model, { Name = "Led", Shape = Enum.PartType.Ball, Size = l.S, CFrame = base * CFrame.new(l.C) * CFrame.Angles(0, 0, math.rad(l.Rz or 0)),
+            Color = LUME, Glow = true, Zone = "Led" })
+        p:SetAttribute("GlowDrive", "Led")
+        p:SetAttribute("GlowCold", 0.78)
+        p:SetAttribute("GlowHot", 0.0)
+    end
+    local k = d.Knob
+    if k then
+        -- the index dot turns with the knob (the same TurnDrive "Click" about the knob's axis)
+        local dot = H.Deco(model, { Name = "KnobDot", Shape = Enum.PartType.Ball, Size = V(k.DotS, k.DotS, 0.003), CFrame = base * CFrame.new(k.Dot),
+            Color = LUME, Glow = true, Zone = "Knob" })
+        H.Rotor(dot, (base * CFrame.new(k.C)).Position, base:VectorToWorldSpace(V(0, 0, 1)), 0)
+        dot:SetAttribute("RotorSpeed", nil)
+        dot:SetAttribute("TurnDrive", "Click")
+        dot:SetAttribute("GlowDrive", "Dot")
+        dot:SetAttribute("GlowCold", 0.45)
+        dot:SetAttribute("GlowHot", 0.0)
+    end
+end
+
+-- ===== sounds (tools/make_skin_sfx_v3.py tactile: each gun's own recorded shot + a dry polymer tock; every moment from CC0
+-- recordings -- a radial knob's detents, a toggle switch, plastic buttons, a CRT switching off, a rubber mallet, an axe
+-- biting wood; tools/sound_sources.json) =====
+Set.Sounds = {
+    Fire = { Id = 0, Volume = 0 }, Equip = { Id = 115766678589030, Volume = 0.42 }, MagOut = { Id = 88459804257462, Volume = 0.32 },
+    MagIn = { Id = 94819880492660, Volume = 0.36 }, Kill = { Id = 122559834314116, Volume = 0.5 }, Impact = { Id = 81358198190135, Volume = 0.2 },
+    Swing = { Id = 130458924414320, Volume = 0.38 }, MeleeHit = { Id = 140306839961101, Volume = 0.42 }, Click = { Id = 97063057203230, Volume = 0.22 },
+    -- (each gun's own full shot; volumes matched to the base guns' level: MP5 +2.4 dB, TAR-21 +1.0, KSG +2.1 dB over the base)
+    FireGun = { MP5 = { Id = 128458544148002, Volume = 0.53 }, TAR21 = { Id = 128445183396867, Volume = 0.76 }, KSG = { Id = 75434747097836, Volume = 0.75 } },
+}
+local function PlaySound(H: any, d: any, pitch: number?)
+    if not d or (d.Id or 0) == 0 then return end
+    local s = Instance.new("Sound")
+    s.SoundId = "rbxassetid://" .. tostring(d.Id)
+    s.Volume = d.Volume or 0.4
+    s.PlaybackSpeed = pitch or 1
+    local grp = H.SoundService:FindFirstChild("AimRngMix_Weapons")
+    if grp then s.SoundGroup = grp end
+    s.Parent = H.SoundService
+    s:Play()
+    H.Debris:AddItem(s, 2)
+end
+
+-- ===== motion: every key the parts read =====
+-- v = rig.SkinVars / rec.Vars: Click (the knob's angle), ClickGoal, Lvl[i] (each column's height), Kick (shot energy),
+-- Rnd[i] (this shot's dip per column), LastSS, LastDetent, LedT (a flare), SliderT
+local function Columns(d: any): number
+    return (d and d.Eq and #d.Eq) or 9
+end
+local function Rows(d: any): number
+    return (d and d.Eq and d.Eq[1] and d.Eq[1].Rows) or 4
+end
+local function Keys(st: any, v: any, dt: number, now: number, d: any, anim: string?, animT: number?, H: any?)
+    local n, rows = Columns(d), Rows(d)
+    local ss = st.SinceShot or 99
+    local se = st.SinceEquip or 99
+    local streak = math.min(st.Streak or 0, 5)
+    -- a shot: knock the meter, one knob detent, a small LED flick
+    local shot = ss < 0.08 and ss < (v.LastSS or 99) - 1e-4
+    v.LastSS = ss
+    v.Rnd = v.Rnd or {}
+    if shot then
+        v.Kick = 1
+        for i = 1, n do v.Rnd[i] = 0.35 + 0.5 * math.random() end
+        v.ClickGoal = (v.ClickGoal or 0) + DETENT
+    end
+    v.Kick = math.max(0, (v.Kick or 0) - dt / (0.16 - 0.015 * streak))
+    -- the knob: eased onto its goal with a little overshoot (a detent snapping in)
+    local inInspect = anim == "Inspect"
+    local goal = v.ClickGoal or 0
+    if se < 0.75 then
+        -- drawn: it spins back to zero (half a turn backwards) and clicks into place over the detents
+        local k = smooth(se / 0.62)
+        goal = goal - TAU * 0.5 * (1 - k)
+    end
+    if inInspect and animT then
+        -- the inspect runs it through every detent: a full turn between the Present and the Tilt beats (kept afterwards:
+        -- the turn is folded into the goal when the inspect ends, so the knob never spins back)
+        local a, b = v.Present or 0.6, v.Tilt or 1.8
+        local k = math.clamp((animT - a) / math.max(0.2, b - a), 0, 1)
+        v.InspTurn = TAU * math.floor(k * 12) / 12
+        goal = goal + v.InspTurn
+    elseif (v.InspTurn or 0) ~= 0 then
+        v.ClickGoal = (v.ClickGoal or 0) + v.InspTurn
+        goal = goal + v.InspTurn
+        v.InspTurn = 0
+    end
+    local c = v.Click or goal
+    local vel = v.ClickV or 0
+    vel += ((goal - c) * 900 - vel * 42) * dt
+    c += vel * dt
+    v.Click, v.ClickV = c, vel
+    st.Click = c
+    -- detent clicks you can hear: only while the inspect turns it (the draw's own sound carries its detents; a shot's
+    -- sound covers its click)
+    local det = math.floor((c + 1e-3) / DETENT)
+    if v.LastDetent and det ~= v.LastDetent and inInspect and H then PlaySound(H, Set.Sounds.Click, 0.95 + 0.1 * math.random()) end
+    v.LastDetent = det
+    -- the meter: lit columns = the ammo left (by rounds when the rig knows them)
+    local ammo = st.Ammo or 1
+    if st.AmmoMax and st.AmmoMax > 0 and st.AmmoCount then ammo = st.AmmoCount / st.AmmoMax end
+    local lit = math.ceil(ammo * n - 1e-6)
+    local rl = st.Reload or 0
+    local sweep = nil -- (a column index the cursor is at: brighter)
+    if rl > 0 then
+        -- drained right -> left while the magazine comes out, dark, then charged back left -> right as it seats
+        if rl < 0.3 then lit = math.ceil(lit * (1 - rl / 0.3))
+        elseif rl < 0.62 then lit = 0
+        else
+            local k = smooth((rl - 0.62) / 0.33)
+            lit = math.floor(k * n + 0.5)
+            sweep = lit
+        end
+    end
+    -- the draw: a power-on sweep, every column up left -> right, then settling to the ammo
+    local power = se < 1.0
+    for i = 1, n do
+        local x = (i - 1) / math.max(1, n - 1)
+        local on = i <= lit
+        local h = 1
+        local g = on and (0.72 + 0.1 * streak / 5 + 0.08 * math.sin(now * 1.6 + x * 1.2)) or 0
+        if on then
+            -- the shot's knock: down a row or two, back up (quantised to rows: it's a dot matrix)
+            local dip = (v.Kick or 0) * (v.Rnd[i] or 0.5)
+            h = math.max(1 / rows, 1 - dip)
+            if dip > 0.02 then g = math.max(g, 0.9) end
+        end
+        if sweep and i == sweep then g = 1 end
+        if power then
+            local w = math.clamp((se - 0.12 - x * 0.35) / 0.12, 0, 1)
+            local fall = math.clamp((se - 0.62 - (1 - x) * 0.15) / 0.2, 0, 1)
+            local up = w * (1 - fall)
+            if up > 0 then h = math.max(h * (on and 1 or 0), up); g = math.max(g, up) end
+        end
+        if inInspect and animT then
+            -- the inspect: a level-meter chase across the columns (the Tilt beat brings it to a full flash)
+            local t = animT - (v.Present or 0.6)
+            if t > 0 then
+                local wave = 0.5 + 0.5 * math.sin(t * 7 - x * 5)
+                local ch = math.clamp(wave * 1.1, 0, 1) * math.clamp(t / 0.3, 0, 1) * (1 - math.clamp((animT - (v.Settle or 2.8) + 0.3) / 0.3, 0, 1))
+                if ch > 0.05 then h = math.max(math.ceil(ch * rows) / rows, on and h or 0); g = math.max(g, ch) end
+            end
+        end
+        local hq = math.max(1, math.ceil(h * rows - 0.25)) / rows
+        v.Lvl = v.Lvl or {}
+        st["Eq" .. i] = hq
+        st["EqG" .. i] = g
+    end
+    -- the standby LED: breathes slowly; the draw blinks it twice; a seated magazine flares it; a shot flicks it
+    local led = 0.32 + 0.3 * (0.5 + 0.5 * math.sin(now * TAU / 3.6)) + 0.05 * streak
+    if se < 0.5 then led = ((se % 0.25) < 0.12) and 1 or 0.05 end
+    local lt = v.LedT and (now - v.LedT) or 99
+    if lt < 0.6 then led = math.max(led, 1 - lt / 0.6) end
+    if rl > 0.6 and rl < 0.75 then led = 1 end
+    led = math.max(led, 0.6 * math.exp(-ss / 0.08))
+    st.Led = math.clamp(led, 0, 1)
+    st.Dot = math.clamp(0.5 + 0.5 * math.exp(-ss / 0.1) + (se < 0.8 and 0.5 or 0), 0, 1)
+    -- the TAR-21's slider: back on the reload (from the magazine coming out to it seating), a flick on the inspect's Tilt
+    local sl = 0
+    if rl > 0.12 and rl < 0.72 then sl = smooth((rl - 0.12) / 0.08) * (1 - smooth((rl - 0.64) / 0.08)) end
+    local sk = v.SliderT and (now - v.SliderT) or 99
+    if sk < 0.45 then sl = math.max(sl, math.sin(math.clamp(sk / 0.45, 0, 1) * math.pi)) end
+    st.Slider = sl
+end
+Set.Drive = function(rig: any, st: any, dt: number, now: number, H: any)
+    local v = rig.SkinVars
+    if rig.Def and rig.Def.IsMelee then
+        -- the hatchet: the collar LED breathes, blinks on the inspect's Flip and on a hit
+        local lt = v.LedT and (now - v.LedT) or 99
+        local led = 0.3 + 0.25 * (0.5 + 0.5 * math.sin(now * TAU / 3.6))
+        if lt < 0.7 then led = ((lt % 0.22) < 0.11) and 1 or 0.1 end
+        st.Led = led
+        return
+    end
+    local sk = rig.Skin or {}
+    local d = DATA[(sk.Fit and sk.Fit.G) or ""]
+    local an, at = rig.AnimName, rig.AnimTime
+    if an == "Inspect" and rig.Anim and rig.Anim.Beats then
+        local b = rig.Anim.Beats
+        v.Present, v.Tilt, v.Settle = b.Present or v.Present, b.Tilt or b.Flip or b.Rack or v.Tilt, b.Settle or v.Settle
+    end
+    Keys(st, v, dt, now, d, an, at, H)
+end
+Set.OnEvent = function(rig: any, name: string, H: any, data: any)
+    local v = rig.SkinVars
+    if not v then return end
+    if name == "MagIn" or name == "PumpForward" or name == "ShellIn" or name == "Present" then v.LedT = os.clock() end
+    if name == "Tilt" or name == "Rack" or name == "TacSnap" then v.SliderT = os.clock() end
+    if rig.Def and rig.Def.IsMelee and (name == "Flip" or name == "TacBlink") then v.LedT = os.clock() end
+end
+Set.OnAnim = function(rig: any, name: string)
+    if rig.Def and rig.Def.IsMelee and (name:find("Light") or name:find("Heavy") or name:find("Quick")) then rig.SkinVars.LedT = os.clock() end
+end
+-- other players' guns: a full meter breathing, the LED, now and then a detent and a short chase
+Set.World = function(rec: any, now: number, st: any)
+    local v = rec.Vars
+    local dt = v.LastNow and math.clamp(now - v.LastNow, 0, 0.2) or 0
+    v.LastNow = now
+    v.NextTurn = v.NextTurn or (now + 2 + math.random() * 4)
+    if now >= v.NextTurn then v.ClickGoal = (v.ClickGoal or 0) + DETENT; v.NextTurn = now + 3 + math.random() * 5 end
+    st.SinceShot = 99; st.SinceEquip = 99; st.Reload = 0; st.Streak = 1; st.Ammo = 1; st.AmmoCount = nil
+    local d = DATA.TAR21 -- (12 columns: covers every gun's grille; a column a gun doesn't have reads nothing)
+    Keys(st, v, dt, now, d, nil, nil, nil)
+    st.Led = 0.3 + 0.3 * (0.5 + 0.5 * math.sin(now * TAU / 3.6))
+end
+
+-- ===== muzzle: a neat compact flash (no fireball) + a small coral ring snapping out =====
+Set.Muzzle = function(rig: any, flash: ParticleEmitter, light: PointLight, muzzle: Attachment, H: any)
+    flash.Color = ColorSequence.new(HOT, LUME)
+    flash.Size = NumberSequence.new({ NumberSequenceKeypoint.new(0, 0.11), NumberSequenceKeypoint.new(1, 0.02) })
+    light.Color = LUME
+    light.Brightness = 0.6
+    rig.Fx.TacRing = H.Emitter(muzzle, { Name = "TacRing", Texture = ART.tc_ring, Color = { HOT, LUME }, Size = { 0.05, 0.32 },
+        Life = { 0.08, 0.09 }, Speed = { 0, 0 }, Trans = { 0.15, 1 }, Light = 1, Orient = Enum.ParticleOrientation.VelocityPerpendicular,
+        Dir = Enum.NormalId.Right, Spread = 0 })
+end
+Set.OnFire = function(rig: any, H: any)
+    if rig.Fx and rig.Fx.TacRing then rig.Fx.TacRing:Emit(1) end
+end
+
+-- ===== DOT tracer: a clean thin line of evenly spaced dots racing from the gun to the hit (a dot grille in motion) =====
+Set.Tracer = function(H: any, from: Vector3, to: Vector3, peer: boolean?)
+    local dist = (to - from).Magnitude
+    if dist < 1.5 then return end
+    local host = H.FxPart({ Transparency = 1, Size = V(0.05, 0.05, 0.05), CFrame = CFrame.new(from) })
+    local a0, a1 = H.Att(host, from), H.Att(host, to)
+    local dots = Instance.new("Beam")
+    dots.Attachment0, dots.Attachment1 = a0, a1
+    dots.Texture = ART.tc_dots; dots.TextureMode = Enum.TextureMode.Static; dots.TextureLength = 0.55; dots.TextureSpeed = 0
+    dots.Color = ColorSequence.new(HOT, LUME); dots.LightEmission = 1; dots.LightInfluence = 0; dots.FaceCamera = true; dots.Segments = 1
+    dots.Width0, dots.Width1 = 0.07, peer and 0.1 or 0.13
+    dots.Parent = host
+    local core = Instance.new("Beam")
+    core.Attachment0, core.Attachment1 = a0, a1
+    core.Color = ColorSequence.new(LUME); core.LightEmission = 1; core.LightInfluence = 0; core.FaceCamera = true; core.Segments = 1
+    core.Width0, core.Width1 = 0.01, 0.018
+    core.Parent = host
+    local dir = (to - from).Unit
+    local travel = H.TRAVEL -- (hitscan: the shot is there at once, nothing flies)
+    local dur = travel + 0.14
+    H.Animate(dur, function(t)
+        local hk = math.clamp(t / travel, 0, 1)
+        local head = from + dir * dist * hk
+        local tailK = math.clamp((t - travel * 0.4) / (dur - travel * 0.4), 0, 1)
+        a0.WorldPosition, a1.WorldPosition = from, head -- (hitscan look: the tail stays at the muzzle)
+        dots.TextureSpeed = 0
+        dots.Transparency = NumberSequence.new({ NumberSequenceKeypoint.new(0, 0.6 + 0.4 * tailK), NumberSequenceKeypoint.new(1, 0.05 + 0.6 * tailK) })
+        core.Transparency = NumberSequence.new({ NumberSequenceKeypoint.new(0, 1), NumberSequenceKeypoint.new(1, 0.55 + 0.45 * tailK) })
+    end, function() host:Destroy() end)
+end
+
+-- ===== PRESS impact: a rounded-square ripple pressed into the surface (expands, fades) + a small dust puff =====
+Set.Impact = function(H: any, pos: Vector3, normal: Vector3?, peer: boolean?)
+    if not H.Budget("TactileImpact", peer and 3 or 8, 0.4) then return end
+    local n = (normal and normal.Magnitude > 0.1) and normal.Unit or V(0, 1, 0)
+    local face = CFrame.lookAt(pos + n * 0.02, pos + n * 2) * CFrame.Angles(0, 0, math.random() * 0.4 - 0.2)
+    local p = H.FxPart({ Transparency = 1, Size = V(0.2, 0.2, 0.02), CFrame = face })
+    local dec = Instance.new("Decal")
+    dec.Texture = ART.tc_press; dec.Face = Enum.NormalId.Front; dec.Color3 = LUME; dec.Transparency = 0.1
+    dec.Parent = p
+    if not peer then
+        local att = H.Att(p, pos + n * 0.04)
+        local em = H.Emitter(att, { Name = "TacDust", Texture = H.SMOKE, Color = { C(120, 116, 112), C(80, 78, 76) }, Size = { 0.12, 0.35 }, Life = { 0.25, 0.4 },
+            Speed = { 0.5, 1.5 }, Spread = 40, Trans = { 0.6, 1 }, Light = 0, Influence = 1, Drag = 3 })
+        em.EmissionDirection = Enum.NormalId.Front
+        em:Emit(4)
+    end
+    H.Animate(0.38, function(t)
+        local k = t / 0.38
+        local e = 1 - (1 - k) ^ 3
+        local s = 0.16 + 0.42 * e
+        p.Size = V(s, s, 0.02)
+        dec.Transparency = math.clamp(0.1 + k ^ 1.4, 0, 1)
+    end, function() p:Destroy() end)
+end
+
+-- ===== POWER DOWN kill (FX audit pilot 2026-10-14; was a flat selection-box sticker folding above the head -- read as a debug
+-- outline). ONE idea: the enemy is a device being switched off. Its silhouette goes to a lit screen that collapses like an
+-- old CRT -- to a bright line, then to one coral STANDBY dot that blinks twice -- and the knob's detent CLICKS (a thin ring).
+-- 1.1 s. The lit panel sits on the body for 0.06 s only (dimmed, never white), then it is a line / a dot.
+-- Budget: full 4 parts; low 3 parts (line -> dot on its ink, no panel). =====
+local function BodyBox(pos: Vector3, H: any): (CFrame, Vector3)
+    local op = OverlapParams.new()
+    op.FilterType = Enum.RaycastFilterType.Exclude
+    local ex = { H.FxFolder() }
+    for _, pl in ipairs(H.Players:GetPlayers()) do if pl.Character then table.insert(ex, pl.Character) end end
+    if workspace.CurrentCamera then table.insert(ex, workspace.CurrentCamera) end
+    op.FilterDescendantsInstances = ex
+    local best, count = nil, {}
+    for _, p in ipairs(workspace:GetPartBoundsInRadius(pos, 3.5, op)) do
+        local m = p:FindFirstAncestorOfClass("Model")
+        while m and not (m:FindFirstChild("Head") or m:FindFirstChild("Torso")) do m = m.Parent and m.Parent:FindFirstAncestorOfClass("Model") end
+        if m then count[m] = (count[m] or 0) + 1; if not best or count[m] > count[best] then best = m end end
+    end
+    if best then
+        local ok, cf, size = pcall(function() return best:GetBoundingBox() end)
+        if ok and size.Magnitude < 20 then return cf, size end
+    end
+    return CFrame.new(pos - V(0, 1.4, 0)), V(1.8, 3.8, 1.2)
+end
+Set.Kill = function(H: any, pos: Vector3, low: boolean)
+    local bcf, bsz = BodyBox(pos, H)
+    local center = bcf.Position
+    -- (seen in play: a body on a stand / legs collapsed to its hips -- the screen shuts down to the chest, under the head)
+    local lift = math.max(0, (pos.Y - 1.5) - center.Y)
+    local cam = workspace.CurrentCamera
+    local toCam = cam and (cam.CFrame.Position - center) or V(0, 0, 1)
+    toCam = V(toCam.X, 0, toCam.Z)
+    toCam = (toCam.Magnitude > 0.05) and toCam.Unit or V(0, 0, 1)
+    local face = CFrame.lookAt(center + toCam * (math.max(bsz.X, bsz.Z) * 0.5 + 0.1), center + toCam * 10) -- (faces you, just in front of the body)
+    local W = math.clamp(math.max(bsz.X, bsz.Z) * 0.95, 1.2, 5)
+    local Hh = math.clamp(bsz.Y * 0.92, 1.6, 7)
+    local model = Instance.new("Model")
+    model.Name = "TactileKill"
+    model.Parent = H.FxFolder()
+    -- (seen in play: a pale panel / line vanished on a bright floor. Like the icon look, every lit piece now has a dark INK
+    -- backing: the screen is a dark graphite pane, the line and the standby dot sit on an ink bar)
+    local panel = (not low) and H.FxPart({ Material = Enum.Material.SmoothPlastic, Size = V(W, Hh, 0.04), Color = P.Plate, Transparency = 1,
+        CFrame = face * CFrame.new(0, 0, 0.06) }, model) or nil
+    local ink = H.FxPart({ Material = Enum.Material.SmoothPlastic, Size = V(W, 0.3, 0.03), Color = P.Ink, Transparency = 1, CFrame = face * CFrame.new(0, 0, 0.03) }, model)
+    local dotAt = face + V(0, lift, 0)
+    local line = H.FxPart({ Size = V(W, 0.2, 0.04), Color = HOT, Transparency = 1, CFrame = face }, model)
+    local ring = H.FxPart({ Shape = Enum.PartType.Cylinder, Size = V(0.02, 0.4, 0.4), Color = LUME, Transparency = 1,
+        CFrame = dotAt * CFrame.Angles(0, math.rad(90), 0) }, model)
+    local dur = low and 0.9 or 1.1
+    H.Animate(dur, function(t)
+        -- 1) the screen: on for a beat (dimmed), then it squeezes to a line (0.04 -> 0.22)
+        if panel then
+            local sq = smooth((t - 0.04) / 0.18)
+            panel.Size = V(W * (1 + 0.12 * sq), math.max(0.06, Hh * (1 - sq)), 0.04)
+            panel.Transparency = (t < 0.02 or sq >= 0.98) and 1 or (0.12 + 0.3 * sq)
+        end
+        -- 2) the line glows hot and pulls in to a dot (0.2 -> 0.38)
+        local pull = smooth((t - (low and 0 or 0.2)) / 0.18)
+        -- (roll-out: the pilot's dot read as a speck at 25 studs -- the standby LED is 0.75 studs now, on a 1-stud ink bezel)
+        local lw = W * 1.12 * (1 - pull) + 0.75 * pull
+        local lh = 0.2 + 0.55 * pull
+        line.Size = V(math.max(0.75, lw), lh, 0.04)
+        line.CFrame = face:Lerp(dotAt, pull) -- (the line rises to the chest as it pulls in)
+        ink.Size = V(line.Size.X + 0.25, line.Size.Y + 0.25, 0.03)
+        ink.CFrame = line.CFrame * CFrame.new(0, 0, 0.03)
+        line.Color = HOT:Lerp(LUME, pull)
+        -- 3) standby: the dot holds and blinks twice (0.38 -> 0.85), then goes off
+        local on = (t >= (low and 0 or 0.18))
+        local blink = (t > 0.5 and t < 0.58) or (t > 0.68 and t < 0.76)
+        local off = smooth((t - 0.86) / 0.08)
+        line.Transparency = (not on or blink) and 1 or math.clamp(0.05 + off, 0, 1)
+        ink.Transparency = (not on) and 1 or math.clamp(0.1 + off, 0, 1)
+        -- 4) the detent CLICK: a thin ring opens round the dot as it goes off
+        local rk = math.clamp((t - 0.86) / 0.22, 0, 1)
+        local rs = 0.9 + 2.6 * rk
+        ring.Size = V(0.02, rs, rs)
+        ring.Transparency = (rk <= 0) and 1 or (0.35 + 0.65 * rk)
+    end, function() model:Destroy() end)
+end
+
+-- ===== TOGGLE banner (lower right, beside the weapon card): a rounded graphite plate with five toggle switches; each kill
+-- in the streak flips the next one on (the knob slides across, the track lights); at 5 the standby LED flares =====
+local banner
+local NUMFONT = Font.new("rbxasset://fonts/families/RobotoCondensed.json", Enum.FontWeight.Bold)
+Set.Banner = function(H: any, streak: number)
+    local gui, root = H.BannerRoot("Tactile", Vector2.new(180, 90), "Side")
+    if not root then return end
+    local New = H.New
+    if not banner or banner.Root ~= root then
+        local plate = New("Frame", { BackgroundColor3 = P.Plate, BackgroundTransparency = 0.06, BorderSizePixel = 0, Size = UDim2.fromScale(1, 1), ZIndex = 1 }, root,
+            { New("UICorner", { CornerRadius = UDim.new(0, 16) }), New("UIStroke", { Color = MID, Thickness = 1.5, Transparency = 0.2 }) })
+        -- the plate's four screws
+        local screws = {}
+        for i, xy in ipairs({ { 9, 9 }, { 171, 9 }, { 9, 81 }, { 171, 81 } }) do
+            screws[i] = New("Frame", { BorderSizePixel = 0, BackgroundColor3 = MID, AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.fromOffset(xy[1], xy[2]),
+                Size = UDim2.fromOffset(6, 6), ZIndex = 2 }, root, { New("UICorner", { CornerRadius = UDim.new(0.5, 0) }) })
+        end
+        local led = New("Frame", { BorderSizePixel = 0, BackgroundColor3 = LUME, AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.fromOffset(152, 22),
+            Size = UDim2.fromOffset(16, 6), ZIndex = 3 }, root, { New("UICorner", { CornerRadius = UDim.new(0.5, 0) }) })
+        local glow = New("ImageLabel", { BackgroundTransparency = 1, Image = H.Art.Glow, ImageColor3 = LUME, AnchorPoint = Vector2.new(0.5, 0.5),
+            Position = UDim2.fromOffset(152, 22), Size = UDim2.fromOffset(46, 30), ImageTransparency = 0.7, ZIndex = 2 }, root)
+        local num = New("TextLabel", { BackgroundTransparency = 1, AnchorPoint = Vector2.new(0, 0.5), Position = UDim2.fromOffset(16, 22), Size = UDim2.fromOffset(110, 24),
+            FontFace = NUMFONT, TextSize = 22, TextColor3 = P.Text, TextXAlignment = Enum.TextXAlignment.Left, Text = "", ZIndex = 3 }, root)
+        num:SetAttribute("KeepFont", true)
+        local toggles = {}
+        for i = 1, 5 do
+            local x = 16 + (i - 1) * 31
+            local track = New("Frame", { BorderSizePixel = 0, BackgroundColor3 = C(20, 20, 22), Position = UDim2.fromOffset(x, 46), Size = UDim2.fromOffset(26, 30), ZIndex = 3 }, root,
+                { New("UICorner", { CornerRadius = UDim.new(0, 8) }), New("UIStroke", { Color = MID, Thickness = 1, Transparency = 0.35 }) })
+            local knob = New("Frame", { BorderSizePixel = 0, BackgroundColor3 = MID, AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.fromOffset(13, 21),
+                Size = UDim2.fromOffset(18, 12), ZIndex = 4 }, track, { New("UICorner", { CornerRadius = UDim.new(0, 5) }) })
+            -- a channel LED over each switch (lit when the switch is on)
+            local dot = New("Frame", { BorderSizePixel = 0, BackgroundColor3 = C(40, 40, 44), AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.fromOffset(x + 13, 40),
+                Size = UDim2.fromOffset(5, 5), ZIndex = 3 }, root, { New("UICorner", { CornerRadius = UDim.new(0.5, 0) }) })
+            toggles[i] = { Track = track, Knob = knob, Dot = dot, On = false }
+        end
+        banner = { Root = root, Plate = plate, Screws = screws, Led = led, Glow = glow, Num = num, Toggles = toggles, Token = 0 }
+    end
+    local b = banner
+    b.Token += 1
+    local token = b.Token
+    local st = math.clamp(streak or 1, 1, 5)
+    root.Visible = true
+    b.Plate.BackgroundTransparency = 0.06
+    for _, s in ipairs(b.Screws) do s.BackgroundTransparency = 0 end
+    b.Num.TextTransparency = 0
+    b.Num.Text = (st >= 5) and "ALL ON" or ("ON  " .. st .. " / 5")
+    b.Num.TextColor3 = (st >= 5) and LUME or P.Text
+    b.Led.BackgroundTransparency = 0
+    b.Glow.ImageTransparency = 0.7
+    for i, tg in ipairs(b.Toggles) do
+        local on = i < st
+        tg.Track.BackgroundTransparency = 0
+        tg.Knob.BackgroundTransparency = 0
+        tg.Track.BackgroundColor3 = on and LUME:Lerp(C(0, 0, 0), 0.35) or C(20, 20, 22)
+        tg.Knob.BackgroundColor3 = on and HOT or MID
+        tg.Knob.Position = UDim2.fromOffset(13, on and 9 or 21)
+        tg.Dot.BackgroundTransparency = 0
+        tg.Dot.BackgroundColor3 = on and LUME or C(40, 40, 44)
+    end
+    -- the newest toggle flips: the knob slides up with a small overshoot, the track lights
+    local tg = b.Toggles[st]
+    H.Animate(0.24, function(t)
+        if b.Token ~= token then return end
+        local k = t / 0.24
+        local c = 1.6
+        local e = 1 + (c + 1) * (k - 1) ^ 3 + c * (k - 1) ^ 2
+        tg.Knob.Position = UDim2.fromOffset(13, 21 - 12 * e)
+        tg.Track.BackgroundColor3 = C(20, 20, 22):Lerp(LUME:Lerp(C(0, 0, 0), 0.35), math.clamp(k * 2, 0, 1))
+        tg.Knob.BackgroundColor3 = MID:Lerp(HOT, math.clamp(k * 2, 0, 1))
+        tg.Dot.BackgroundColor3 = C(40, 40, 44):Lerp(LUME, math.clamp(k * 2 - 0.6, 0, 1))
+        if st >= 5 then b.Glow.ImageTransparency = 0.7 - 0.45 * math.sin(k * math.pi) end
+    end)
+    task.delay(1.6, function()
+        if b.Token ~= token then return end
+        local ti = TweenInfo.new(0.3)
+        H.TweenService:Create(b.Plate, ti, { BackgroundTransparency = 1 }):Play()
+        H.TweenService:Create(b.Num, ti, { TextTransparency = 1 }):Play()
+        H.TweenService:Create(b.Led, ti, { BackgroundTransparency = 1 }):Play()
+        H.TweenService:Create(b.Glow, ti, { ImageTransparency = 1 }):Play()
+        for _, s in ipairs(b.Screws) do H.TweenService:Create(s, ti, { BackgroundTransparency = 1 }):Play() end
+        for _, t2 in ipairs(b.Toggles) do
+            H.TweenService:Create(t2.Track, ti, { BackgroundTransparency = 1 }):Play()
+            H.TweenService:Create(t2.Knob, ti, { BackgroundTransparency = 1 }):Play()
+            H.TweenService:Create(t2.Dot, ti, { BackgroundTransparency = 1 }):Play()
+        end
+        task.delay(0.32, function() if b.Token == token then root.Visible = false end end)
+    end)
+end
+
+-- ===== the FIELD HATCHET (melee, Axe class): WeaponAssets.MeleeModels.Tactile -- an anodised slate head with a hammer poll,
+-- a rounded lightening window and a clean flat grind, an orange rubber collar with a coral LED, a soft-touch graphite
+-- handle with a raised rubber grip panel and a lanyard hole in the pommel =====
+Set.Melee = {
+    Skin = { Name = "Field Hatchet", Price = 449, ProductId = 0,
+        Desc = "A modern camp hatchet: an anodised slate head with a hammer poll, a rounded lightening window and a clean bright grind on the bit, held by two Torx screws; an orange rubber collar under the head with a coral standby LED; a soft-touch graphite handle with a raised rubber grip and a lanyard hole. The LED blinks when you turn it over to look at it. Every kill hits the OFF SWITCH." },
+    Rig = { Class = "Axe", BladeLen = 1.1 },
+    FlatBlade = true,
+    InspectEvents = { { "Flip", "TacBlink" }, { "Flip", "Sound", { Id = 97063057203230, Volume = 0.25 } } },
+    Build = function(m: Model, o: any, H: any)
+        local parts = H.CloneModel(m, "MeleeModels", "Tactile", VAR, nil)
+        -- (the collar holds the hand's top: it is part of the grip for the clip check)
+        if parts.Guard then parts.Guard.Name = "GripCollar" end
+        local d = DATA.Hatchet
+        local host = parts.GripCollar or parts.Grip
+        if d and host then
+            for _, l in ipairs(d.Led or {}) do
+                local p = H.Deco(m, { Name = "GripLed", Shape = Enum.PartType.Ball, Size = l.S, CFrame = CFrame.new(l.C), Color = LUME, Glow = true, Zone = "Grip" })
+                p:SetAttribute("GlowDrive", "Led"); p:SetAttribute("GlowCold", 0.78); p:SetAttribute("GlowHot", 0)
+            end
+        end
+        local blade = parts.Blade
+        if not blade then return end
+        local a0, a1 = Instance.new("Attachment"), Instance.new("Attachment")
+        a0.Name, a1.Name = "TrailBase", "TrailTip"
+        a0.Position = blade.CFrame:PointToObjectSpace(V(0.3, 0.8, 0))
+        a1.Position = blade.CFrame:PointToObjectSpace(V(0.31, 1.1, 0))
+        a0.Parent, a1.Parent = blade, blade
+        local tr = Instance.new("Trail")
+        tr.Attachment0, tr.Attachment1 = a0, a1
+        tr.Color = ColorSequence.new(HOT, LUME)
+        tr.Transparency = NumberSequence.new({ NumberSequenceKeypoint.new(0, 0.45), NumberSequenceKeypoint.new(1, 1) })
+        tr.LightEmission = 0.6; tr.LightInfluence = 0
+        tr.Lifetime = 0.13; tr.MinLength = 0.02; tr.FaceCamera = true
+        tr.Enabled = false
+        tr:SetAttribute("SwingTrail", true)
+        tr.Parent = blade
+    end,
+}
+
+-- ===== arms: UTILITY GLOVES + MOULDED SLEEVES (sculpted mesh pieces, WeaponAssets.ArmsModels.Tactile) =====
+-- Glove: soft-touch graphite with a perforated anodised knuckle panel and a moulded rubber cuff; an orange pull loop at the
+-- cuff with ONE effect: a coral standby LED breathing in it. Sleeve: smooth neoprene with a flat-lock seam along the top of
+-- the forearm, a moulded rubber grip band at the wrist (nubs, a small anodised label plate) and a small orange tab.
+Set.Glove = function(K: any)
+    local V3 = K.V
+    return {
+        Id = "UtilityGloves", Name = "Utility Gloves", Price = 449,
+        Desc = "Soft-touch graphite gloves with a perforated anodised knuckle panel and a moulded rubber cuff. An orange pull loop at the cuff carries a small coral standby light that breathes slowly. Part of the Tactile set.",
+        -- (touch-up, arms bar: the hand block wears the soft-touch stipple of the gun housings, not one flat colour; GearLight
+        -- counter-tints Texture Color3 since 31ac092 -- before that this texture read tan in Molten)
+        Base = { Color = BODY, Material = Enum.Material.SmoothPlastic, Reflectance = 0, Tex = "tex_tc_softgrip", TexTile = 1.4, TexT = 0, TexColor = BODY:Lerp(C(255, 255, 255), 0.06) },
+        Parts = {
+            { Mesh = "Tactile/Knuckle", MeshV = VAR, Size = V3(0.9, 0.14, 0.34), Off = V3(0, 0.53, -0.22), Seat = true },
+            { Mesh = "Tactile/Cuff", MeshV = VAR, Size = V3(1.12, 1.12, 0.16), Off = V3(0, 0, 0.42) },
+            -- (the loop + tab meshes are flat plates in their own X / Y with the thickness along Z: Rot 90 lays them on the top face)
+            { Mesh = "Tactile/Loop", MeshV = VAR, Size = V3(0.24, 0.22, 0.045), Off = V3(0, 0.585, 0.4), Rot = V3(90, 0, 0), Seat = true },
+            { Shape = "Ball", Size = V3(0.11, 0.03, 0.04), Off = V3(0, 0.61, 0.43), Color = LUME, Glow = true, Seat = true,
+              Anim = "Pulse", PulseMin = 0.05, PulseMax = 0.6, Speed = 1.7 },
+        },
+    }
+end
+Set.Sleeve = function(K: any)
+    local V3 = K.V
+    return {
+        Id = "MouldedSleeves", Name = "Moulded Sleeves", Price = 299,
+        Desc = "A smooth neoprene sleeve with a flat-lock seam running up the forearm and a moulded rubber grip band at the wrist -- raised nubs, a small anodised label plate and an orange tab. Part of the Tactile set.",
+        -- (touch-up, arms bar: neoprene jersey on the forearm block + a second flat-lock seam down the outer side)
+        Base = { Color = BODY:Lerp(C(0, 0, 0), 0.12), Material = Enum.Material.SmoothPlastic, Reflectance = 0, Tex = "tex_tc_neoprene", TexTile = 1.8, TexT = 0, TexColor = BODY:Lerp(C(255, 255, 255), 0.05) },
+        Parts = {
+            { Mesh = "Tactile/Band", MeshV = VAR, Size = V3(1.12, 1.12, 0.24), Off = V3(0, 0, -0.38) },
+            { Mesh = "Tactile/Tab", MeshV = VAR, Size = V3(0.16, 0.13, 0.035), Off = V3(0.3, 0.575, -0.22), Rot = V3(90, 0, 0), Seat = true },
+            { Mesh = "Tactile/Seam", MeshV = VAR, Size = V3(0.12, 0.03, 0.62), Off = V3(0, 0.51, 0.12), Seat = true },
+            { Mesh = "Tactile/Seam", MeshV = VAR, Size = V3(0.12, 0.03, 0.62), Off = V3(0.51, 0, 0.12), Rot = V3(0, 0, -90), Seat = true },
+        },
+    }
+end
+
+-- ===== health bar: a slate bar perforated with dots, an orange fill, a knurled end knob riding the fill; a hit presses
+-- a small rounded-square ripple into it =====
+-- (BARS v2, FX roll-out: an instrument meter -- the ink frame, a signal-orange fill in five detents, lost health holds a
+-- beat then SNAPS out in three clicks; a standby LED at the left end; elites / bosses add the knurled knob riding the fill)
+Set.Bar = { Id = "Tactile", Name = "Tactile", Price = 149,
+    Desc = "An instrument meter: a signal-orange fill in five detents and a standby LED. Lost health holds for a beat, then clicks out in three steps; on elites and bosses a knurled knob rides the end of the fill. Part of the Tactile set.",
+    Look = "Ink", FillColor = ACCENT, ChipMotion = "Snap", Chip = HOT, Back = C(16, 16, 18), Segments = 5, Decor = { "StandbyLed", "EndKnob" } }
+Set.BarDecor = {
+    StandbyLed = function(ctx: any, K: any)
+        -- a coral LED in an ink bezel just left of the bar: lit while the enemy lives, blinks once on each hit
+        local f = K.Fader()
+        local bez = K.New("Frame", { BorderSizePixel = 0, BackgroundColor3 = C(10, 10, 12), AnchorPoint = Vector2.new(1, 0.5), ZIndex = 10 }, ctx.Holder)
+        K.New("UICorner", { CornerRadius = UDim.new(1, 0) }, bez)
+        local led = K.New("Frame", { BorderSizePixel = 0, BackgroundColor3 = LUME, AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.fromScale(0.5, 0.5),
+            Size = UDim2.fromScale(0.6, 0.6), ZIndex = 11 }, bez)
+        K.New("UICorner", { CornerRadius = UDim.new(1, 0) }, led)
+        f.Add(bez, 0, "BackgroundTransparency")
+        local blinkAt = -9
+        return function(now, dt, alpha, info)
+            local s = math.max(6, ctx.H + 2)
+            bez.Size = UDim2.fromOffset(s, s)
+            bez.Position = UDim2.fromOffset(-3, ctx.H / 2)
+            if (info.Hit or 0) > 0.95 then blinkAt = now end
+            local off = (now - blinkAt) < 0.08
+            led.BackgroundTransparency = 1 - alpha * (off and 0.15 or 1)
+            f.Apply(alpha)
+        end
+    end,
+    OrangeFill = function(ctx: any, K: any)
+        for _, c in ipairs(ctx.Inner:GetChildren()) do if c:IsA("ImageLabel") then c.ImageColor3 = ACCENT end end
+        return function() end
+    end,
+    EndKnob = function(ctx: any, K: any)
+        if ctx.Tier == "Small" then return function() end end
+        local f = K.Fader()
+        local pv = K.Pivot(ctx.Holder, 12)
+        local knob = f.Add(K.Img(ART.tc_emblem, { AnchorPoint = Vector2.new(0.5, 0.5), ZIndex = 12 }, pv), 0)
+        local ang = 0
+        return function(now, dt, alpha, info)
+            local s = ctx.H * 1.7
+            knob.Size = UDim2.fromOffset(s, s)
+            pv.Position = UDim2.fromOffset(ctx.W * math.clamp(info.Shown, 0.02, 1), ctx.H / 2)
+            -- (the knob turns as the fill moves: one detent per 1/12 of the bar, eased)
+            local goal = -math.floor(info.Shown * 12 + 0.5) * 30
+            ang += (goal - ang) * math.min(1, dt * 16)
+            knob.Rotation = ang
+            f.Apply(alpha)
+        end
+    end,
+    Press = function(ctx: any, K: any)
+        local f = K.Fader()
+        local ring = f.Add(K.Img(ART.tc_press, { AnchorPoint = Vector2.new(0.5, 0.5), ImageColor3 = HOT, ZIndex = 11 }, ctx.Holder), 1)
+        local k = 1
+        local lastHit = 0
+        return function(now, dt, alpha, info)
+            if (info.Hit or 0) > lastHit + 0.05 then k = 0 end
+            lastHit = info.Hit or 0
+            k = math.min(1, k + dt / 0.35)
+            local s = ctx.H * (1.2 + 1.6 * k)
+            ring.Size = UDim2.fromOffset(s, s)
+            ring.Position = UDim2.fromOffset(ctx.W * math.clamp(info.Shown, 0, 1), ctx.H / 2)
+            ring.ImageTransparency = 1 - alpha * (1 - k) * 0.8
+        end
+    end,
+}
+
+-- ===== UI theme: industrial-design glass (UI design system v3: dark neutral slabs, a fine dot-grille texture, rounded
+-- corners with a screw, the knob emblem; signal orange is the accent, calm -- no ambient particles; fonts untouched) =====
+-- ===== UI theme v2 (FX roll-out 2026-10-14; v1 = the shared template). A well-made DEVICE, icon look (flat facet + ink
+-- edge): a SCREW HEAD in each corner (slot turned a different way on each), a STANDBY LED in the top-right corner that
+-- breathes coral, a recessed GRILLE STRIP along the bottom edge whose holes light one by one like a level meter; windows
+-- open by POWER-ON: two graphite shutters part from a coral line across the middle; every title gets a small toggle that
+-- sits ON. Calm: nothing drifts. Colours from the theme table (Body / Screw / Lume / Ink) so colourways recolour them.
+local function TcFacet(ctx, o, lit, shade, inkTh)
+    local g = Instance.new("UIGradient")
+    g.Color = ctx.UIStyle.Facet(lit, shade)
+    g.Rotation = ctx.UIStyle.FACET_ROT or 35
+    g.Parent = o
+    local ink = ctx.UIStyle.InkEdge(inkTh or 2)
+    ink.Parent = o
+    return g
+end
+local function TcDeco(ctx)
+    if ctx.Kind ~= "Window" then return nil end
+    local t = ctx.Theme
+    local host = ctx.Root or ctx.Surface
+    local f = Instance.new("Frame")
+    f.Name = "TcOverlay"; f.BackgroundTransparency = 1; f.Size = UDim2.fromScale(1, 1); f.ZIndex = 20; f.Active = false
+    f:SetAttribute("NoSkin", true); f:SetAttribute("Skinned", true)
+    f.Parent = host
+    local abs = host.AbsoluteSize
+    local small = math.min(abs.X, abs.Y) < 260
+    local sz = small and 9 or 14
+    for i, c in ipairs({ { 0, 0, 20 }, { 1, 0, 75 }, { 0, 1, -35 }, { 1, 1, 130 } }) do
+        local sc = Instance.new("Frame")
+        sc.Name = "TcScrew"; sc.BorderSizePixel = 0; sc.BackgroundColor3 = Color3.new(1, 1, 1); sc.AnchorPoint = Vector2.new(c[1], c[2])
+        sc.Size = UDim2.fromOffset(sz, sz); sc.Position = UDim2.new(c[1], c[1] == 0 and 6 or -6, c[2], c[2] == 0 and 6 or -6); sc.ZIndex = f.ZIndex + 1
+        local cr = Instance.new("UICorner"); cr.CornerRadius = UDim.new(1, 0); cr.Parent = sc
+        TcFacet(ctx, sc, t.Screw, t.Screw:Lerp(t.Ink, 0.45), 1.5)
+        local slot = Instance.new("Frame")
+        slot.BorderSizePixel = 0; slot.BackgroundColor3 = t.Ink; slot.AnchorPoint = Vector2.new(0.5, 0.5); slot.Position = UDim2.fromScale(0.5, 0.5)
+        slot.Size = UDim2.new(0.75, 0, 0, 2); slot.Rotation = c[3]; slot.ZIndex = sc.ZIndex + 1; slot.Parent = sc
+        sc.Parent = f
+    end
+    -- the standby LED (top right, inside the screw)
+    local led = Instance.new("Frame")
+    led.Name = "TcLed"; led.BorderSizePixel = 0; led.BackgroundColor3 = t.Lume; led.AnchorPoint = Vector2.new(1, 0)
+    led.Size = UDim2.fromOffset(small and 5 or 7, small and 5 or 7); led.Position = UDim2.new(1, -(sz + 12), 0, 9); led.ZIndex = f.ZIndex + 1
+    local lc = Instance.new("UICorner"); lc.CornerRadius = UDim.new(1, 0); lc.Parent = led
+    local ls = Instance.new("UIStroke"); ls.Color = t.Ink; ls.Thickness = 1.5; ls.Parent = led
+    led.Parent = f
+    -- the grille strip: a recessed slot of holes along the bottom edge, lighting one by one (a level meter)
+    local holes = {}
+    local N = small and 8 or 16
+    local strip = Instance.new("Frame")
+    strip.Name = "TcGrille"; strip.BorderSizePixel = 0; strip.BackgroundColor3 = t.Ink; strip.BackgroundTransparency = 0.2
+    strip.AnchorPoint = Vector2.new(0.5, 1); strip.Size = UDim2.new(0.42, 0, 0, small and 6 or 8); strip.Position = UDim2.new(0.5, 0, 1, -4)
+    strip.ZIndex = f.ZIndex + 1
+    local sc2 = Instance.new("UICorner"); sc2.CornerRadius = UDim.new(1, 0); sc2.Parent = strip
+    strip.Parent = f
+    for i = 1, N do
+        local h = Instance.new("Frame")
+        h.BorderSizePixel = 0; h.BackgroundColor3 = t.Lume; h.AnchorPoint = Vector2.new(0.5, 0.5)
+        h.Size = UDim2.fromOffset(small and 2 or 3, small and 2 or 3); h.Position = UDim2.fromScale((i - 0.5) / N, 0.5); h.ZIndex = strip.ZIndex + 1
+        local hc = Instance.new("UICorner"); hc.CornerRadius = UDim.new(1, 0); hc.Parent = h
+        h.Parent = strip
+        holes[i] = h
+    end
+    return function(now, dt)
+        led.BackgroundTransparency = 0.15 + 0.55 * (0.5 + 0.5 * math.sin(now * 1.6))
+        local lvl = (math.sin(now * 0.7) * 0.5 + 0.5) * N
+        for i, h in ipairs(holes) do h.BackgroundTransparency = (i <= lvl) and 0.1 or 0.85 end
+    end, { f }
+end
+local function TcOpen(ctx)
+    -- POWER-ON: two graphite shutters part from a coral line across the middle (0.36 s)
+    local t = ctx.Theme
+    local root = ctx.Root
+    if not root then return end
+    local f = root:FindFirstChild("TcOverlay") or ctx.Frame
+    local line = Instance.new("Frame")
+    line.BorderSizePixel = 0; line.BackgroundColor3 = t.Lume; line.AnchorPoint = Vector2.new(0.5, 0.5); line.Position = UDim2.fromScale(0.5, 0.5)
+    line.Size = UDim2.new(0.1, 0, 0, 3); line.ZIndex = f.ZIndex + 7; line.Parent = f
+    ctx.Tween:Create(line, TweenInfo.new(0.14, Enum.EasingStyle.Quad), { Size = UDim2.new(1, 0, 0, 3) }):Play()
+    for _, side in ipairs({ -1, 1 }) do
+        local sh = Instance.new("Frame")
+        sh.BorderSizePixel = 0; sh.BackgroundColor3 = t.Body; sh.AnchorPoint = Vector2.new(0, side < 0 and 1 or 0)
+        sh.Position = UDim2.fromScale(0, 0.5); sh.Size = UDim2.fromScale(1, 0.5); sh.ZIndex = f.ZIndex + 6; sh.Parent = f
+        task.delay(0.12, function()
+            if sh.Parent then ctx.Tween:Create(sh, TweenInfo.new(0.24, Enum.EasingStyle.Quad, Enum.EasingDirection.In), { Size = UDim2.fromScale(1, 0) }):Play() end
+        end)
+        task.delay(0.4, function() sh:Destroy() end)
+    end
+    task.delay(0.22, function() if line.Parent then ctx.Tween:Create(line, TweenInfo.new(0.16), { BackgroundTransparency = 1 }):Play() end end)
+    task.delay(0.4, function() line:Destroy() end)
+end
+local function TcTitle(ctx)
+    -- a small toggle switch on the title bar, sitting ON (coral track, light knob, ink edges)
+    local bar, t = ctx.Title, ctx.Theme
+    local track = Instance.new("Frame")
+    track.Name = "TcToggle"; track.BorderSizePixel = 0; track.BackgroundColor3 = t.Lume; track.AnchorPoint = Vector2.new(1, 0.5)
+    -- (right side, left of the emblem + close button: the title text and its subtitle keep the left)
+    local h = math.max(bar.AbsoluteSize.Y, 30)
+    track.Size = UDim2.fromOffset(22, 10); track.Position = UDim2.new(1, -(h * 2.9 + 22), 0.5, 0); track.ZIndex = bar.ZIndex + 1
+    local c1 = Instance.new("UICorner"); c1.CornerRadius = UDim.new(1, 0); c1.Parent = track
+    local s1 = Instance.new("UIStroke"); s1.Color = t.Ink; s1.Thickness = 1.5; s1.Parent = track
+    local knob = Instance.new("Frame")
+    knob.BorderSizePixel = 0; knob.BackgroundColor3 = t.Screw; knob.AnchorPoint = Vector2.new(1, 0.5); knob.Position = UDim2.new(1, -1, 0.5, 0)
+    knob.Size = UDim2.fromOffset(8, 8); knob.ZIndex = track.ZIndex + 1
+    local c2 = Instance.new("UICorner"); c2.CornerRadius = UDim.new(1, 0); c2.Parent = knob
+    knob.Parent = track
+    track.Parent = bar
+    return { track }
+end
+-- numbers v3 (SKIN UI 2026-10-29, owner: numbers "unique to the skin and the colorways you have equipped"; the old meter bar
+-- under the number went): A DEVICE READOUT. Rounded soft-touch digits (Nunito) that step up in three detents like the gun's
+-- knob, a small TOGGLE beside them that flips ON as the number appears. CRIT = the standby LED over it blinks twice; WEAK
+-- SPOT = a rounded SELECTION BOX presses in round the digits; a KILL = the OFF SWITCH: the box frames it, folds to a line and
+-- then to one standby dot, and the toggle flips back off. Calm: nothing shakes. Every colour is this copy's palette (P = the
+-- colourway: Graphite coral, Claret champagne, Ultramarine yellow).
+local function TcMotion(e, age, pa, life)
+    local k = math.min(1, age / 0.8)
+    local ease = 1 - (1 - k) ^ 3
+    local step = math.floor(ease * 3 + 0.0001) / 3
+    local settle = (pa < 0.06 and age > 0.08) and 0.04 or 0 -- (a merged hit: one detent click)
+    local alpha
+    if e.Killed and e.KillAt then -- (switched off: the digits go out as the box folds)
+        alpha = math.clamp((os.clock() - e.KillAt - 0.36) / 0.12, 0, 1)
+    end
+    return step * 1.6, 0, 1 + settle, 0, alpha, 0
+end
+local function TcAccent(e)
+    local f = Instance.new("Frame")
+    f.Name = "TcDevice"; f.BackgroundTransparency = 1; f.Size = UDim2.fromScale(1, 1); f.ZIndex = 0
+    local track = Instance.new("Frame")
+    track.Name = "Toggle"; track.BorderSizePixel = 0; track.AnchorPoint = Vector2.new(1, 0.5); track.Size = UDim2.fromOffset(18, 9); track.ZIndex = 1
+    track.Parent = f
+    local c1 = Instance.new("UICorner"); c1.CornerRadius = UDim.new(1, 0); c1.Parent = track
+    local s1 = Instance.new("UIStroke"); s1.Color = P.Ink; s1.Thickness = 1.5; s1.Parent = track
+    local knob = Instance.new("Frame")
+    knob.Name = "Knob"; knob.BorderSizePixel = 0; knob.AnchorPoint = Vector2.new(0.5, 0.5); knob.Size = UDim2.fromOffset(7, 7); knob.ZIndex = 2
+    knob.BackgroundColor3 = P.Text; knob.Parent = track
+    local c2 = Instance.new("UICorner"); c2.CornerRadius = UDim.new(1, 0); c2.Parent = knob
+    local led = Instance.new("Frame")
+    led.Name = "Led"; led.BorderSizePixel = 0; led.AnchorPoint = Vector2.new(0.5, 0.5); led.Size = UDim2.fromOffset(6, 6); led.ZIndex = 2
+    led.BackgroundColor3 = P.Lume; led.Parent = f
+    local c3 = Instance.new("UICorner"); c3.CornerRadius = UDim.new(1, 0); c3.Parent = led
+    local s3 = Instance.new("UIStroke"); s3.Color = P.Ink; s3.Thickness = 1; s3.Parent = led
+    local box = Instance.new("Frame")
+    box.Name = "Box"; box.BackgroundTransparency = 1; box.AnchorPoint = Vector2.new(0.5, 0.5); box.Position = UDim2.fromScale(0.5, 0.5); box.ZIndex = 1
+    box.Parent = f
+    local c4 = Instance.new("UICorner"); c4.CornerRadius = UDim.new(0, 5); c4.Parent = box
+    local s4 = Instance.new("UIStroke"); s4.Thickness = 1.5; s4.Parent = box
+    return f
+end
+local function TcAccentStep(e, f, age, pa, alpha)
+    local tb = e.Label.TextBounds
+    local now = os.clock()
+    local kt = (e.Killed and e.KillAt) and (now - e.KillAt) or nil
+    -- the toggle: flips ON as the number appears (knob slides right, track lights), back OFF on a kill
+    local track = f:FindFirstChild("Toggle")
+    if track then
+        track.Visible = not e.Dot
+        track.Position = UDim2.new(0.5, -math.floor(tb.X / 2) - 5, 0.5, 0)
+        local on = math.clamp((age - 0.03) / 0.08, 0, 1)
+        if kt then on = 1 - math.clamp((kt - 0.3) / 0.1, 0, 1) end
+        local knob = track:FindFirstChild("Knob")
+        if knob then knob.Position = UDim2.new(0, 4.5 + 9 * on, 0.5, 0); knob.BackgroundTransparency = alpha end
+        track.BackgroundColor3 = P.Off:Lerp(P.Accent, on)
+        track.BackgroundTransparency = alpha
+        track:FindFirstChildOfClass("UIStroke").Transparency = math.clamp(alpha + 0.2, 0, 1)
+    end
+    -- the standby LED over a crit: two blinks (and the one dot left when it is switched off)
+    local led = f:FindFirstChild("Led")
+    if led then
+        local crit = e.Crit and not e.Dot
+        led.Visible = (crit or kt ~= nil) and not e.Dot
+        if led.Visible then
+            if kt and kt > 0.6 then -- (the standby dot the box folded down to)
+                led.Position = UDim2.fromScale(0.5, 0.5)
+                local b = ((kt - 0.6) * 6) % 2 > 1 and 0.6 or 0
+                led.BackgroundTransparency = math.clamp(b + math.max(0, kt - 1.5) * 2, 0, 1)
+            else
+                led.Position = UDim2.new(0.5, math.floor(tb.X / 2) + 5, 0.5, -math.floor(tb.Y * 0.32))
+                local blink = (pa < 0.36 and (pa * 11) % 2 > 1) and 0.75 or 0
+                led.BackgroundTransparency = math.clamp(alpha + blink, 0, 1)
+            end
+            led:FindFirstChildOfClass("UIStroke").Transparency = math.clamp(led.BackgroundTransparency + 0.2, 0, 1)
+        end
+    end
+    -- the selection box: presses in round a weak-spot hit; frames a kill, then folds to a line and a dot
+    local box = f:FindFirstChild("Box")
+    if box then
+        local on = ((e.Weak or kt) and not e.Dot) and true or false
+        box.Visible = on
+        if on then
+            local st = box:FindFirstChildOfClass("UIStroke")
+            local w, h = tb.X + 14, tb.Y + 4
+            local tr = alpha
+            if kt then
+                -- (it frames the kill for a beat, then folds to a line and a dot as the digits go out)
+                local a = math.clamp((kt - 0.36) / 0.12, 0, 1) -- (to a line)
+                local b = math.clamp((kt - 0.48) / 0.12, 0, 1) -- (to a dot)
+                h = h * (1 - a) + 2 * a
+                w = w * (1 - b) + 2 * b
+                tr = (kt > 0.6) and 1 or 0
+                st.Color = P.Lume
+            else
+                local k = math.min(1, pa / 0.1)
+                w, h = w + 8 * (1 - k), h + 6 * (1 - k)
+                st.Color = P.Accent
+            end
+            box.Size = UDim2.fromOffset(math.floor(w), math.floor(h))
+            st.Transparency = math.clamp(tr + 0.1, 0, 1)
+        end
+    end
+end
+-- ===== UI THEME v4 (SKIN UI THEMES, roll-out 2026-10-29): the clean language in this colourway's colours (UITheme Clean)
+-- + two touches of a well-made device. Calm: nothing drifts. Hooks read only the palette they get:
+--   TAB MARK  a DOT-MATRIX row lit from behind in the standby-light colour; on the top bar its dots light up and fall back
+--             like a level meter
+--   FIELD     a perforated GRILLE plate in the lower right, held by four Torx screws, its dot columns rising and falling like a
+--             level meter (the gun's grille is its ammo meter); the primary is the gun's one coloured control
+local TC_CLEAN = {
+    Field = P.Dark:Lerp(P.Detail, 0.5), Surface = P.Detail:Lerp(P.Plate, 0.5), Raised = P.Plate:Lerp(P.Body, 0.45), Hover = P.Body:Lerp(P.Mid, 0.3),
+    Well = P.Ink, Line = P.Mid:Lerp(P.Plate, 0.35), Tip = P.Dark:Lerp(P.Detail, 0.6),
+    Accent = P.Accent, Mark = P.Lume, Hair = P.Mid:Lerp(P.Text, 0.35),
+    Text = P.Text, Sub = P.Text:Lerp(P.Mid, 0.42), Muted = P.Mid:Lerp(P.Text, 0.4), Ink = P.Ink,
+    Led = P.Lume, LedOff = P.Off, Plate = P.Plate:Lerp(P.Body, 0.25), Screw = P.Mid:Lerp(P.Text, 0.3),
+}
+-- (HudThemes.Variant keeps a colourway copy's Clean colour only where it DIFFERS from colourway 1's -- an equal one goes through
+-- the hue map and can come out wrong: nudge every copy colour a hair so this palette wins)
+if VAR ~= 1 then for k, v in pairs(TC_CLEAN) do if typeof(v) == "Color3" then TC_CLEAN[k] = v:Lerp(Color3.new(0, 0, 0), 0.003) end end end
+local TC_DOTS = 9
+local function TcDotSeq(lit)
+    -- a row of TC_DOTS soft dots (a gradient's transparency: dot / gap / dot ...), the first `lit` full, the rest dim
+    local kp = {}
+    local n = TC_DOTS * 2 - 1
+    for i = 0, n do
+        local isDot = (i % 2 == 0)
+        local dot = math.floor(i / 2) + 1
+        local tr = isDot and ((dot <= lit) and 0 or 0.65) or 1
+        table.insert(kp, NumberSequenceKeypoint.new(i / n, tr))
+    end
+    return NumberSequence.new(kp)
+end
+local TC_SEQ = {}
+for i = 0, TC_DOTS do TC_SEQ[i] = TcDotSeq(i) end
+TC_CLEAN.TabMark = function(mark, Q)
+    local g = Instance.new("UIGradient")
+    g.Name = "TcDots"; g.Transparency = TC_SEQ[TC_DOTS]; g.Parent = mark
+    return { g }
+end
+TC_CLEAN.Sig = function(ctx)
+    local Q, f = ctx.P, ctx.Frame
+    local cols, rows, pitch = ctx.Phone and 10 or 16, 5, 11
+    local pad = 18
+    local pw, ph = cols * pitch + pad * 2, rows * pitch + pad * 2
+    -- (built the first time this field shows: the Sig runs for every menu field at once; built unparented and marked UITKeep
+    -- before it goes in, so the palette walk never touches it)
+    local dots
+    local function Build()
+    local plate = Instance.new("Frame")
+    plate.Name = "TcGrille"; plate.BorderSizePixel = 0; plate.BackgroundColor3 = Q.Plate; plate.BackgroundTransparency = 0.35
+    plate.AnchorPoint = Vector2.new(1, 1); plate.Position = UDim2.new(1, -24, 1, -22); plate.Size = UDim2.fromOffset(pw, ph); plate.ZIndex = 0
+    local pc = Instance.new("UICorner"); pc.CornerRadius = UDim.new(0, 2); pc.Parent = plate
+    local ps = Instance.new("UIStroke"); ps.Color = Q.Line; ps.Thickness = 1; ps.Transparency = 0.2; ps.Parent = plate
+    dots = {}
+    for c = 1, cols do
+        dots[c] = {}
+        for r = 1, rows do
+            local d = Instance.new("Frame")
+            d.BorderSizePixel = 0; d.BackgroundColor3 = Q.LedOff; d.AnchorPoint = Vector2.new(0.5, 0.5)
+            d.Position = UDim2.fromOffset(pad + (c - 0.5) * pitch, pad + (r - 0.5) * pitch); d.Size = UDim2.fromOffset(5, 5); d.ZIndex = 1; d.Parent = plate
+            local dc = Instance.new("UICorner"); dc.CornerRadius = UDim.new(1, 0); dc.Parent = d
+            dots[c][r] = { F = d, Lit = false }
+        end
+    end
+    -- four Torx screws at the plate's corners (a head, a six-lobe socket of three crossing bars)
+    for _, cn in ipairs({ { 0, 0 }, { 1, 0 }, { 0, 1 }, { 1, 1 } }) do
+        local s = Instance.new("Frame")
+        s.BorderSizePixel = 0; s.BackgroundColor3 = Q.Screw; s.AnchorPoint = Vector2.new(0.5, 0.5); s.Size = UDim2.fromOffset(9, 9)
+        s.Position = UDim2.new(cn[1], (cn[1] == 0) and 8 or -8, cn[2], (cn[2] == 0) and 8 or -8); s.ZIndex = 1; s.Parent = plate
+        local sc = Instance.new("UICorner"); sc.CornerRadius = UDim.new(1, 0); sc.Parent = s
+        local ss = Instance.new("UIStroke"); ss.Color = Q.Ink; ss.Thickness = 1; ss.Parent = s
+        local rot = math.random(0, 59)
+        for i = 0, 2 do
+            local b = Instance.new("Frame")
+            b.BorderSizePixel = 0; b.BackgroundColor3 = Q.Ink; b.AnchorPoint = Vector2.new(0.5, 0.5); b.Position = UDim2.fromScale(0.5, 0.5)
+            b.Size = UDim2.fromOffset(5, 1); b.Rotation = rot + i * 60; b.ZIndex = 2; b.Parent = s
+        end
+    end
+    plate:SetAttribute("UITKeep", true)
+    for _, d in ipairs(plate:GetDescendants()) do d:SetAttribute("UITKeep", true) end
+    plate.Parent = f
+    end
+    local seed = math.random() * 20
+    local lastAt = -1
+    local lastLit = -1
+    return function(now, _dt)
+        if not dots then Build() end
+        -- the level meter: 8 updates a second, only the dots that change are touched (event-cheap, no per-frame sweep)
+        if now - lastAt < 0.125 then return end
+        lastAt = now
+        local t = now + seed
+        for c = 1, cols do
+            local lv = 0.5 + 0.32 * math.sin(t * 1.3 + c * 0.55) + 0.18 * math.sin(t * 3.1 + c * 1.7)
+            local n = math.clamp(math.floor(lv * rows + 0.5), 0, rows)
+            for r = 1, rows do
+                local lit = (rows - r) < n
+                local d = dots[c][r]
+                if d.Lit ~= lit then
+                    d.Lit = lit
+                    d.F.BackgroundColor3 = lit and Q.Led or Q.LedOff
+                end
+            end
+        end
+        -- the selected tab's dot row follows the level of the meter's first column
+        local lit = math.clamp(math.floor((0.5 + 0.5 * math.sin(t * 1.1)) * TC_DOTS + 0.5), 2, TC_DOTS)
+        if lit ~= lastLit then
+            lastLit = lit
+            for _, m in ipairs(ctx.Marks()) do
+                local g = m.Visible and m:FindFirstChild("TcDots")
+                if g then g.Transparency = TC_SEQ[lit] end
+            end
+        end
+    end, nil
+end
+local function PG(top, bottom) return { Top = top, Bottom = bottom } end
+Set.Theme = { Name = "Tactile", Desc = "Menus as a well-made device: a screw head in every corner, a standby LED breathing in the top corner, a grille strip whose holes light like a level meter, a toggle switched ON on every title, and windows power on as two shutters part from a coral line. Calm: nothing drifts.",
+    Panel = PG(C(36, 36, 40), C(14, 14, 16)), Card = PG(C(48, 48, 54), C(22, 22, 26)), Title = PG(C(80, 82, 90), C(34, 34, 40)),
+    Accent = C(255, 110, 30), Accent2 = C(200, 204, 212), HpFill = C(255, 110, 30), HpBg = C(24, 18, 16), XpFill = C(255, 150, 90), Text = C(236, 236, 240),
+    Tex = "tex_tc_grille", TexT = 0.9, TexTile = 64,
+    Emblem = "EmblemTactile", BorderThick = 2,
+    Body = C(30, 30, 34), Screw = C(200, 204, 212), Lume = C(255, 110, 90), Ink = C(7, 7, 9),
+    Deco = TcDeco, OpenFn = TcOpen, TitleDeco = TcTitle,
+    Clean = TC_CLEAN, -- (SKIN UI THEMES roll-out: the clean palette + dot-matrix tab marks + the grille plate's level meter; the old art is not drawn)
+    -- (SKIN UI 2026-10-29: a device readout -- detents, a toggle, the standby LED on crits, a selection box on weak spots, the
+    -- OFF SWITCH on a kill; the old meter bar under the number is gone; this colourway's P)
+    Numbers = { Font = "Nunito", Glyph = "", NoBang = true, Motion = TcMotion, Accent = TcAccent, AccentStep = TcAccentStep,
+        Normal = P.Text, Crit = P.Lume, Weak = P.Accent:Lerp(P.Text, 0.25), Stroke = P.Ink, Size = 1.05 } }
+
+-- ===== bundle / kill effect / store hero =====
+Set.KillEffect = { Id = "OffSwitch", Name = "Off Switch", Image = ART.tc_emblem,
+    How = "Own any Tactile skin (or the Tactile bundle)",
+    Desc = "The enemy is switched off like a device: its silhouette lights up as a screen, collapses to a bright line and then to one coral standby dot that blinks twice before the knob clicks off. With the Toggle kill banner." }
+Set.Bundle = { Id = "TactileBundle", Name = "Tactile Bundle", Price = 2199, BP = 799, ProductId = 0,
+    Desc = "The whole Tactile set: the Tactile MP5, TAR-21 and KS7, the Field Hatchet, Utility Gloves + Moulded Sleeves, the Tactile health bar, the Tactile UI theme and the Off Switch kill effect.",
+    Contents = { "WeaponSkin:TactileMP5", "WeaponSkin:TactileTAR21", "WeaponSkin:TactileKSG", "MeleeSkin:Tactile", "Glove:UtilityGloves", "Sleeve:MouldedSleeves",
+        "HealthBar:Tactile", "KillEffect:OffSwitch" } }
+Set.Hero = { Grad = { C(52, 50, 56), C(14, 14, 16) }, Stroke = ACCENT, Emblem = ART.tc_emblem, Name = C(236, 236, 240), Chip = C(150, 60, 20) }
+
+return Set
