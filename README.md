@@ -59,6 +59,14 @@ Good places to start: [`DungeonGenerator`](src/ReplicatedStorage/AimRngShared/Du
 
 *The Molten biome mid-combat, with the HUD, minimap, and daily goals.*
 
+<img src="images/upgrade-menu.png" alt="Upgrade menu" width="100%" />
+
+*Forge menu: upgrading a weapon and its stats.*
+
+<img src="images/guide.png" alt="In-game guide" width="100%" />
+
+*In-game guide explaining the core systems.*
+
 ---
 
 <p align="center"><a href="https://github.com/dclane5551">← Back to Danny Lane's profile</a></p>
